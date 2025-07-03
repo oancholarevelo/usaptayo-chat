@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, setDoc, limit, where, runTransaction, getDocs, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, setDoc, limit, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Analytics } from "@vercel/analytics/react";
 import './App.css'; // Import the CSS file
 
@@ -190,32 +190,37 @@ export default function App() {
         await setDoc(userRef, { status: 'waiting' }, { merge: true });
 
         try {
-            await runTransaction(db, async (transaction) => {
-                const waitingUsersQuery = query(
-                    collection(db, 'users'),
-                    where('status', '==', 'waiting'),
-                    where('uid', '!=', user.uid),
-                    limit(1)
-                );
-                const waitingUsersSnap = await getDocs(waitingUsersQuery);
+            // Simple approach: look for waiting users and match with first available
+            const waitingUsersQuery = query(
+                collection(db, 'users'),
+                where('status', '==', 'waiting'),
+                where('uid', '!=', user.uid),
+                limit(1)
+            );
+            const waitingUsersSnap = await getDocs(waitingUsersQuery);
 
-                if (!waitingUsersSnap.empty) {
-                    const partner = waitingUsersSnap.docs[0].data();
-                    const partnerRef = doc(db, 'users', partner.uid);
-                    
-                    const newChatRef = doc(collection(db, 'chats'));
-                    
-                    transaction.set(newChatRef, {
-                        users: [user.uid, partner.uid],
-                        createdAt: serverTimestamp(),
-                    });
+            if (!waitingUsersSnap.empty) {
+                const partner = waitingUsersSnap.docs[0].data();
+                const partnerRef = doc(db, 'users', partner.uid);
+                
+                // Create new chat
+                const newChatRef = doc(collection(db, 'chats'));
+                await setDoc(newChatRef, {
+                    users: [user.uid, partner.uid],
+                    createdAt: serverTimestamp(),
+                });
 
-                    transaction.update(userRef, { status: 'chatting', currentChatId: newChatRef.id });
-                    transaction.update(partnerRef, { status: 'chatting', currentChatId: newChatRef.id });
-                }
-            });
+                // Update both users to chatting status
+                await setDoc(userRef, { status: 'chatting', currentChatId: newChatRef.id }, { merge: true });
+                await setDoc(partnerRef, { status: 'chatting', currentChatId: newChatRef.id }, { merge: true });
+                
+                // The onSnapshot listener will handle the state transition
+            } else {
+                // No waiting users found, stay in waiting state
+                console.log('No waiting users found, staying in waiting state');
+            }
         } catch (error) {
-            console.error("Matchmaking transaction failed: ", error);
+            console.error("Matchmaking failed: ", error);
             await setDoc(userRef, { status: 'matchmaking' }, { merge: true });
             setAppState('matchmaking');
         }
