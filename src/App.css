@@ -142,6 +142,12 @@ body {
   /* Mobile spacing for all containers */
   .centered-screen {
     padding: 1rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
   }
   
   .prompt-box {
@@ -151,6 +157,24 @@ body {
   
   .prompt-box h1 {
     font-size: 2.5rem;
+  }
+  
+  .prompt-box p {
+    font-size: 1.125rem;
+  }
+  
+  .prompt-box input {
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+  }
+  
+  .prompt-box input::placeholder {
+    font-size: 0.875rem;
+  }
+  
+  .prompt-box button {
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
   }
   
   /* Chat page mobile fixes */
@@ -209,8 +233,15 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  max-height: 100vh;
   padding: 1rem;
   text-align: center;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 .prompt-box {
   max-width: 448px;
@@ -229,31 +260,37 @@ body {
 .prompt-box p {
   color: #d1d5db;
   margin-bottom: 2rem;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
 }
 .prompt-box input {
   width: 100%;
   background-color: #374151;
   color: white;
   border-radius: 0.5rem;
-  padding: 0.75rem 1.25rem;
+  padding: 1rem 1.25rem;
   margin-bottom: 1rem;
   border: none;
   box-sizing: border-box;
+  font-size: 1.125rem;
 }
 .prompt-box input:focus {
   outline: 2px solid #8b5cf6;
+}
+.prompt-box input::placeholder {
+  color: #9ca3af;
+  font-size: 1rem;
 }
 .prompt-box button {
   width: 100%;
   background-color: #8b5cf6;
   color: white;
   font-weight: bold;
-  padding: 0.75rem 1.5rem;
+  padding: 1rem 1.5rem;
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
   transition: background-color 0.3s;
+  font-size: 1.125rem;
 }
 .prompt-box button:hover {
   background-color: #7c3aed;
