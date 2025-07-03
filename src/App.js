@@ -93,6 +93,28 @@ export default function App() {
         setAppState('matchmaking');
     };
 
+    const handleReset = async () => {
+        if (!user) return;
+        
+        if (window.confirm('Are you sure you want to reset and start over? This will clear your profile.')) {
+            try {
+                // Delete user profile from Firebase
+                const userRef = doc(db, 'users', user.uid);
+                await setDoc(userRef, {}, { merge: false }); // Clear the document
+                
+                // Reset local state
+                setUserProfile(null);
+                setAppState('homepage');
+                setChatId(null);
+            } catch (error) {
+                console.error("Error resetting profile:", error);
+                // Fallback to clearing localStorage and reloading
+                localStorage.clear();
+                window.location.reload();
+            }
+        }
+    };
+
     const findChat = async () => {
         if (!user) return;
         setAppState('waiting');
@@ -163,7 +185,7 @@ export default function App() {
         case 'nickname':
             return <NicknamePrompt onProfileCreate={handleProfileCreate} />;
         case 'matchmaking':
-            return <MatchmakingScreen onFindChat={findChat} />;
+            return <MatchmakingScreen onFindChat={findChat} onReset={handleReset} />;
         case 'waiting':
             return <LoadingScreen text="Connecting to a stranger..." />;
         case 'chatting':
@@ -189,35 +211,36 @@ const Homepage = ({ onAccept }) => {
     return (
         <div className="homepage">
             <div className="homepage-content">
-                <h1>What is UsapTayo</h1>
+                <h1>Welcome to UsapTayo</h1>
                 <p>
-                    UsapTayo is a special place just for college and university students in the Philippines. 
-                    It's a place where students can connect, talk about their university experiences, help each 
-                    other with school stuff, and make friends with others going through the college journey. 
-                    Join us on UsapTayo for a friendly community made especially for college and university 
-                    students aged 18 and above. Let's chat, learn, and grow together!
+                    UsapTayo is an anonymous chat platform where you can connect with strangers and have 
+                    meaningful conversations. Whether you want to share your thoughts, seek advice, or 
+                    simply chat with someone new, UsapTayo provides a safe and friendly environment for 
+                    open communication. Start conversations, make connections, and discover new perspectives 
+                    from people around the world.
                 </p>
 
-                <h2>Terms and Conditions</h2>
-                <p>By using UsapTayo, you agree to the following terms and conditions:</p>
+                <h2>Community Guidelines</h2>
+                <p>To ensure a positive experience for everyone, please follow these guidelines:</p>
                 <ul>
-                    <li>You must be at least 18 years old to use UsapTayo. By checking the box below, you confirm that you are over 18 years old.</li>
-                    <li>You are solely responsible for your interactions and the messages you send on UsapTayo.</li>
-                    <li>Do not send any illegal, harmful, threatening, abusive, harassing, defamatory, vulgar, obscene, hateful, or racially, ethnically, or otherwise objectionable messages on UsapTayo.</li>
-                    <li>Do not impersonate any other person or entity on UsapTayo.</li>
-                    <li>We reserve the right to terminate access to UsapTayo for users who violate our community guidelines.</li>
+                    <li>You must be at least 18 years old to use this platform.</li>
+                    <li>Be respectful and kind to other users at all times.</li>
+                    <li>Do not share personal information such as your real name, address, phone number, or social media accounts.</li>
+                    <li>Avoid sending inappropriate, offensive, or harmful messages.</li>
+                    <li>Do not spam, advertise, or promote external services.</li>
+                    <li>Report any inappropriate behavior using our reporting system.</li>
                 </ul>
 
-                <h2>Disclaimer of Liability</h2>
+                <h2>Privacy & Safety</h2>
                 <p>
-                    UsapTayo is provided on an "as is" basis. We make no warranties, express or implied, about the 
-                    operation of UsapTayo or the information, content, materials, or products included on UsapTayo. 
-                    You expressly agree that your use of UsapTayo is at your sole risk.
+                    Your privacy and safety are our top priorities. All chats are anonymous and temporary. 
+                    We do not store your personal information or chat history permanently. Remember to never 
+                    share sensitive personal details with strangers online.
                 </p>
                 <p>
-                    To the fullest extent permitted by law, we disclaim all liability for any direct, indirect, 
-                    incidental, special, consequential, or exemplary damages arising out of or in connection with 
-                    your use of UsapTayo, whether based on contract, tort, strict liability, or otherwise.
+                    By using UsapTayo, you acknowledge that you understand the risks of online communication 
+                    and agree to use the platform responsibly. We are not responsible for any interactions 
+                    or content shared between users.
                 </p>
 
                 <form onSubmit={handleSubmit} className="homepage-form">
@@ -228,7 +251,7 @@ const Homepage = ({ onAccept }) => {
                                 checked={isOver18} 
                                 onChange={(e) => setIsOver18(e.target.checked)} 
                             />
-                            I confirm that I am over 18 years old.
+                            I confirm that I am 18 years old or older.
                         </label>
                     </div>
                     <div className="checkbox-container">
@@ -238,11 +261,11 @@ const Homepage = ({ onAccept }) => {
                                 checked={agreeTerms} 
                                 onChange={(e) => setAgreeTerms(e.target.checked)} 
                             />
-                            I agree to UsapTayo's terms and conditions.
+                            I agree to follow the community guidelines and use UsapTayo responsibly.
                         </label>
                     </div>
                     <button type="submit" disabled={!isOver18 || !agreeTerms}>
-                        Let's Go
+                        Start Chatting
                     </button>
                 </form>
             </div>
@@ -279,15 +302,24 @@ const NicknamePrompt = ({ onProfileCreate }) => {
     );
 };
 
-const MatchmakingScreen = ({ onFindChat }) => (
-    <div className="centered-screen">
-        <div className="prompt-box">
-            <h1>UsapTayo</h1>
-            <p>Ready to meet someone new?</p>
-            <button onClick={onFindChat}>Find a Stranger</button>
+const MatchmakingScreen = ({ onFindChat, onReset }) => {
+    return (
+        <div className="centered-screen">
+            <div className="prompt-box">
+                <h1>UsapTayo</h1>
+                <p>Ready to meet someone new?</p>
+                <button onClick={onFindChat}>Find a Stranger</button>
+                <button onClick={onReset} style={{ 
+                    backgroundColor: '#6b7280', 
+                    marginTop: '1rem',
+                    fontSize: '0.875rem'
+                }}>
+                    Reset Profile
+                </button>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const ChatPage = ({ userProfile, chatId, onEndChat }) => (
     <div className="chat-page">
