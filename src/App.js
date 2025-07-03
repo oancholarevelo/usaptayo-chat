@@ -97,16 +97,19 @@ export default function App() {
 
         try {
             await runTransaction(db, async (transaction) => {
+                // Query for waiting users (without the uid filter to avoid composite index)
                 const waitingUsersQuery = query(
                     collection(db, 'users'),
                     where('status', '==', 'waiting'),
-                    where('uid', '!=', user.uid),
-                    limit(1)
+                    limit(10) // Get more results to filter out current user
                 );
                 const waitingUsersSnap = await getDocs(waitingUsersQuery);
 
-                if (!waitingUsersSnap.empty) {
-                    const partner = waitingUsersSnap.docs[0].data();
+                // Filter out the current user from the results
+                const availablePartners = waitingUsersSnap.docs.filter(doc => doc.id !== user.uid);
+
+                if (availablePartners.length > 0) {
+                    const partner = availablePartners[0].data();
                     const partnerRef = doc(db, 'users', partner.uid);
                     
                     const newChatRef = doc(collection(db, 'chats'));
