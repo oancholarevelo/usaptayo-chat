@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, setDoc, limit, where, getDocs, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, setDoc, limit, where, runTransaction, getDocs, writeBatch } from 'firebase/firestore';
 import { Analytics } from "@vercel/analytics/react";
 import './App.css'; // Import the CSS file
 
@@ -564,31 +564,13 @@ const ChatRoom = ({ userProfile, chatId }) => {
 
     return (
         <main className="chat-room">
-            {messages.map((msg, index) => {
-                const prevMessage = index > 0 ? messages[index - 1] : null;
-                const isGrouped = prevMessage && 
-                    prevMessage.uid === msg.uid && 
-                    !prevMessage.isSystemMessage &&
-                    !msg.isSystemMessage &&
-                    msg.createdAt && 
-                    prevMessage.createdAt &&
-                    (msg.createdAt.seconds - prevMessage.createdAt.seconds) < 60;
-                
-                return (
-                    <ChatMessage 
-                        key={msg.id} 
-                        message={msg} 
-                        currentUserUID={userProfile.uid}
-                        isGrouped={isGrouped}
-                    />
-                );
-            })}
+            {messages.map(msg => <ChatMessage key={msg.id} message={msg} currentUserUID={userProfile.uid} />)}
             <div ref={dummy} className="dummy-div"></div>
         </main>
     );
 };
 
-const ChatMessage = ({ message, currentUserUID, isGrouped }) => {
+const ChatMessage = ({ message, currentUserUID }) => {
     const { text, uid, photoURL, displayName, isSystemMessage } = message;
     
     // Handle system messages differently
@@ -602,13 +584,11 @@ const ChatMessage = ({ message, currentUserUID, isGrouped }) => {
     
     const messageClass = uid === currentUserUID ? 'sent' : 'received';
     return (
-        <div className={`message-container ${messageClass} ${isGrouped ? 'grouped' : ''}`}>
+        <div className={`message-container ${messageClass}`}>
             <div className="message-inner">
-                {!isGrouped && (
-                    <img src={photoURL || `https://placehold.co/40x40/8b5cf6/ffffff?text=${displayName?.[0] || 'U'}`} alt="User Avatar" />
-                )}
+                <img src={photoURL || `https://placehold.co/40x40/8b5cf6/ffffff?text=${displayName?.[0] || 'U'}`} alt="User Avatar" />
                 <div className={`message-bubble ${messageClass}`}>
-                    {!isGrouped && <p className="display-name">{displayName || 'Anonymous'}</p>}
+                    <p className="display-name">{displayName || 'Anonymous'}</p>
                     <p>{text}</p>
                 </div>
             </div>
