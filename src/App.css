@@ -101,6 +101,7 @@ body {
   height: 1.25rem;
   accent-color: #8b5cf6;
   cursor: pointer;
+  flex-shrink: 0; /* Prevent checkbox from shrinking */
 }
 
 .homepage-form button {
@@ -126,6 +127,17 @@ body {
   cursor: not-allowed;
 }
 
+/* Reset Profile Button */
+.reset-profile-button {
+  background-color: #6b7280 !important;
+  margin-top: 1rem !important;
+  font-size: 1.125rem !important; /* Same as other buttons */
+}
+
+.reset-profile-button:hover {
+  background-color: #4b5563 !important;
+}
+
 @media (max-width: 768px) {
   .homepage {
     padding: 1rem;
@@ -148,6 +160,10 @@ body {
     right: 0;
     bottom: 0;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
   
   .prompt-box {
@@ -206,7 +222,8 @@ body {
     overflow-y: auto;
     padding: 1rem;
     -webkit-overflow-scrolling: touch;
-    height: calc(100vh - 130px); /* Adjust for mobile header and input */
+    height: calc(100vh - 160px); /* Increased space for mobile header and input */
+    padding-bottom: 2rem; /* Add extra padding at bottom */
   }
   
   .message-form {
@@ -215,14 +232,71 @@ body {
     position: sticky;
     bottom: 0;
     z-index: 10;
-  }
-  
-  .message-bubble {
-    max-width: 240px;
+    background-color: #1f2937;
+    border-top: 1px solid #374151;
   }
   
   .message-form input {
     font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.875rem 1.25rem; /* Slightly larger padding for mobile */
+  }
+  
+  .message-form button {
+    padding: 0.875rem; /* Consistent padding */
+    min-width: 44px; /* Minimum touch target size */
+    min-height: 44px;
+  }
+  
+  /* Ensure message input is always visible */
+  .message-form {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background-color: #1f2937 !important;
+    border-top: 1px solid #374151 !important;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* Additional mobile improvements */
+  .checkbox-container {
+    margin-bottom: 1.5rem; /* More spacing on mobile */
+  }
+  
+  .checkbox-container label {
+    font-size: 1rem; /* Consistent font size */
+    line-height: 1.5;
+    align-items: flex-start; /* Align to top for better multi-line text */
+    gap: 1rem; /* More space between checkbox and text */
+  }
+  
+  .checkbox-container input[type="checkbox"] {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    min-width: 1.25rem; /* Prevent shrinking */
+    margin-top: 0.125rem; /* Slight alignment adjustment */
+  }
+  
+  /* Safe area adjustments for mobile devices */
+  @supports (padding: max(0px)) {
+    .message-form {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+    }
+    
+    .chat-room {
+      padding-bottom: max(2rem, calc(env(safe-area-inset-bottom) + 1rem)) !important;
+    }
+  }
+  
+  /* Improved mobile viewport handling */
+  .chat-page {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for better mobile support */
+  }
+  
+  .centered-screen {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for better mobile support */
   }
 }
 
@@ -349,9 +423,6 @@ body {
   cursor: pointer;
   transition: background-color 0.3s;
 }
-.header button:hover {
-  background-color: #dc2626;
-}
 
 /* Chat Room */
 .chat-room {
@@ -462,4 +533,181 @@ body {
 .message-form button svg {
   width: 24px;
   height: 24px;
+}
+
+/* Notification Toast Styles */
+.notification-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  padding: 1rem 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  animation: slideIn 0.3s ease-out;
+  max-width: 350px;
+  word-wrap: break-word;
+}
+
+.notification-toast.success {
+  background-color: #10b981;
+  color: white;
+}
+
+.notification-toast.error {
+  background-color: #ef4444;
+  color: white;
+}
+
+.notification-toast.info {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.notification-icon {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.notification-message {
+  flex: 1;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+/* Confirmation Dialog Styles */
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.confirm-dialog {
+  background-color: #1f2937;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: scaleIn 0.3s ease-out;
+}
+
+.confirm-dialog-content h3 {
+  color: #f3f4f6;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.confirm-dialog-content p {
+  color: #d1d5db;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.confirm-dialog-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.confirm-dialog-buttons button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 80px;
+}
+
+.cancel-button {
+  background-color: #6b7280;
+  color: white;
+}
+
+.cancel-button:hover {
+  background-color: #4b5563;
+}
+
+.confirm-button {
+  background-color: #ef4444;
+  color: white;
+}
+
+.confirm-button:hover {
+  background-color: #dc2626;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Mobile styles for notifications and dialogs */
+@media (max-width: 768px) {
+  .notification-toast {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+  
+  .confirm-dialog {
+    width: 95%;
+    padding: 1.5rem;
+  }
+  
+  .confirm-dialog-buttons {
+    flex-direction: column;
+  }
+  
+  .confirm-dialog-buttons button {
+    width: 100%;
+  }
 }

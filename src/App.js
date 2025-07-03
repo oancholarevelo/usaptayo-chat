@@ -27,6 +27,22 @@ export default function App() {
     const [userProfile, setUserProfile] = useState(null);
     const [appState, setAppState] = useState('loading'); // loading, homepage, nickname, matchmaking, waiting, chatting
     const [chatId, setChatId] = useState(null);
+    const [notification, setNotification] = useState({ show: false, message: '', type: 'info' }); // info, success, error
+    const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', onConfirm: null });
+
+    // Helper functions for notifications
+    const showNotification = (message, type = 'info') => {
+        setNotification({ show: true, message, type });
+        setTimeout(() => setNotification({ show: false, message: '', type: 'info' }), 4000);
+    };
+
+    const showConfirmDialog = (message, onConfirm) => {
+        setConfirmDialog({ show: true, message, onConfirm });
+    };
+
+    const hideConfirmDialog = () => {
+        setConfirmDialog({ show: false, message: '', onConfirm: null });
+    };
 
     // Effect for handling auth and user profile state
     useEffect(() => {
@@ -96,7 +112,7 @@ export default function App() {
     const handleReset = async () => {
         if (!user) return;
         
-        if (window.confirm('Are you sure you want to reset and start over? This will clear your profile.')) {
+        showConfirmDialog('Are you sure you want to reset and start over? This will clear your profile.', async () => {
             try {
                 // Delete user profile from Firebase
                 const userRef = doc(db, 'users', user.uid);
@@ -106,13 +122,20 @@ export default function App() {
                 setUserProfile(null);
                 setAppState('homepage');
                 setChatId(null);
+                
+                showNotification('Profile reset successfully!', 'success');
+                hideConfirmDialog();
             } catch (error) {
                 console.error("Error resetting profile:", error);
-                // Fallback to clearing localStorage and reloading
-                localStorage.clear();
-                window.location.reload();
+                showNotification('Failed to reset profile. Please try again.', 'error');
+                hideConfirmDialog();
+                
+                // Still navigate to homepage even if reset fails
+                setUserProfile(null);
+                setAppState('homepage');
+                setChatId(null);
             }
-        }
+        });
     };
 
     const findChat = async () => {
@@ -177,21 +200,81 @@ export default function App() {
         setAppState('matchmaking');
     };
 
+    // Effect for handling tab close - automatically reset user
+    useEffect(() => {
+        const handleBeforeUnload = async (event) => {
+            if (user && userProfile) {
+                // Try to clean up user profile when tab is closed
+                try {
+                    const userRef = doc(db, 'users', user.uid);
+                    await setDoc(userRef, {}, { merge: false });
+                } catch (error) {
+                    console.error("Error cleaning up on tab close:", error);
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [user, userProfile]);
+
     switch (appState) {
         case 'loading':
-            return <LoadingScreen text="Loading..." />;
+            return (
+                <>
+                    <LoadingScreen text="Loading..." />
+                    {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
+                    {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                </>
+            );
         case 'homepage':
-            return <Homepage onAccept={handleHomepageAccept} />;
+            return (
+                <>
+                    <Homepage onAccept={handleHomepageAccept} />
+                    {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
+                    {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                </>
+            );
         case 'nickname':
-            return <NicknamePrompt onProfileCreate={handleProfileCreate} />;
+            return (
+                <>
+                    <NicknamePrompt onProfileCreate={handleProfileCreate} />
+                    {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
+                    {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                </>
+            );
         case 'matchmaking':
-            return <MatchmakingScreen onFindChat={findChat} onReset={handleReset} />;
+            return (
+                <>
+                    <MatchmakingScreen onFindChat={findChat} onReset={handleReset} />
+                    {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
+                    {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                </>
+            );
         case 'waiting':
-            return <LoadingScreen text="Connecting to a stranger..." />;
+            return (
+                <>
+                    <LoadingScreen text="Connecting to a stranger..." />
+                    {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
+                    {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                </>
+            );
         case 'chatting':
-            return <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={endChat} />;
+            return (
+                <>
+                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={endChat} />
+                    {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
+                    {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                </>
+            );
         default:
-            return <LoadingScreen text="An error occurred." />;
+            return (
+                <>
+                    <LoadingScreen text="An error occurred." />
+                    {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
+                    {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                </>
+            );
     }
 }
 
@@ -309,11 +392,7 @@ const MatchmakingScreen = ({ onFindChat, onReset }) => {
                 <h1>UsapTayo</h1>
                 <p>Ready to meet someone new?</p>
                 <button onClick={onFindChat}>Find a Stranger</button>
-                <button onClick={onReset} style={{ 
-                    backgroundColor: '#6b7280', 
-                    marginTop: '1rem',
-                    fontSize: '0.875rem'
-                }}>
+                <button onClick={onReset} className="reset-profile-button">
                     Reset Profile
                 </button>
             </div>
@@ -404,3 +483,37 @@ const MessageInput = ({ userProfile, chatId }) => {
         </form>
     );
 };
+
+// Notification Toast Component
+const NotificationToast = ({ message, type }) => (
+    <div className={`notification-toast ${type}`}>
+        <div className="notification-content">
+            <span className="notification-icon">
+                {type === 'success' && '✓'}
+                {type === 'error' && '✕'}
+                {type === 'info' && 'ℹ'}
+            </span>
+            <span className="notification-message">{message}</span>
+        </div>
+    </div>
+);
+
+// Confirmation Dialog Component
+const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
+    <div className="confirm-dialog-overlay">
+        <div className="confirm-dialog">
+            <div className="confirm-dialog-content">
+                <h3>Confirm Action</h3>
+                <p>{message}</p>
+                <div className="confirm-dialog-buttons">
+                    <button onClick={onCancel} className="cancel-button">
+                        Cancel
+                    </button>
+                    <button onClick={onConfirm} className="confirm-button">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+);
