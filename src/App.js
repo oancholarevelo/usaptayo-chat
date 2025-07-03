@@ -210,6 +210,17 @@ export default function App() {
                     createdAt: serverTimestamp(),
                 });
 
+                // Add connection message to the chat
+                const messagesRef = collection(db, 'chats', newChatRef.id, 'messages');
+                await addDoc(messagesRef, {
+                    text: `${userProfile.displayName} connected with ${partner.displayName}`,
+                    createdAt: serverTimestamp(),
+                    uid: 'system',
+                    photoURL: '',
+                    displayName: 'System',
+                    isSystemMessage: true
+                });
+
                 // Update both users to chatting status
                 await setDoc(userRef, { status: 'chatting', currentChatId: newChatRef.id }, { merge: true });
                 await setDoc(partnerRef, { status: 'chatting', currentChatId: newChatRef.id }, { merge: true });
@@ -575,8 +586,17 @@ const ChatMessage = ({ message, currentUserUID }) => {
     
     // Handle system messages differently
     if (isSystemMessage) {
+        let systemMessageClass = 'system-message';
+        
+        // Add specific classes for different types of system messages
+        if (text.includes('connected with')) {
+            systemMessageClass += ' connection';
+        } else if (text.includes('has left the chat')) {
+            systemMessageClass += ' disconnection';
+        }
+        
         return (
-            <div className="system-message">
+            <div className={systemMessageClass}>
                 <p>{text}</p>
             </div>
         );
