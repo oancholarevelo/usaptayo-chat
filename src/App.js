@@ -190,50 +190,71 @@ export default function App() {
         await setDoc(userRef, { status: 'waiting' }, { merge: true });
 
         try {
-            // Simple approach: look for waiting users and match with first available
-            const waitingUsersQuery = query(
-                collection(db, 'users'),
-                where('status', '==', 'waiting'),
-                where('uid', '!=', user.uid),
-                limit(1)
-            );
-            const waitingUsersSnap = await getDocs(waitingUsersQuery);
+            // Use a transaction to ensure atomic matchmaking
+            const result = await runTransaction(db, async (transaction) => {
+                // Query for waiting users
+                const waitingUsersQuery = query(
+                    collection(db, 'users'),
+                    where('status', '==', 'waiting'),
+                    where('uid', '!=', user.uid),
+                    limit(1)
+                );
+                const waitingUsersSnap = await getDocs(waitingUsersQuery);
 
-            if (!waitingUsersSnap.empty) {
-                const partner = waitingUsersSnap.docs[0].data();
-                const partnerRef = doc(db, 'users', partner.uid);
-                
-                // Create new chat
-                const newChatRef = doc(collection(db, 'chats'));
-                await setDoc(newChatRef, {
-                    users: [user.uid, partner.uid],
-                    createdAt: serverTimestamp(),
-                });
+                if (!waitingUsersSnap.empty) {
+                    const partner = waitingUsersSnap.docs[0].data();
+                    const partnerRef = doc(db, 'users', partner.uid);
+                    
+                    // Double-check that the partner is still waiting
+                    const partnerDoc = await transaction.get(partnerRef);
+                    if (!partnerDoc.exists() || partnerDoc.data().status !== 'waiting') {
+                        throw new Error('Partner no longer waiting');
+                    }
+                    
+                    // Create new chat
+                    const newChatRef = doc(collection(db, 'chats'));
+                    transaction.set(newChatRef, {
+                        users: [user.uid, partner.uid],
+                        createdAt: serverTimestamp(),
+                    });
 
-                // Add connection message to the chat
-                const messagesRef = collection(db, 'chats', newChatRef.id, 'messages');
+                    // Update both users to chatting status atomically
+                    transaction.update(userRef, { status: 'chatting', currentChatId: newChatRef.id });
+                    transaction.update(partnerRef, { status: 'chatting', currentChatId: newChatRef.id });
+                    
+                    return { chatId: newChatRef.id, partner: partner };
+                } else {
+                    // No waiting users found, stay in waiting state
+                    return null;
+                }
+            });
+
+            // If we successfully matched, add the connection message
+            if (result) {
+                const messagesRef = collection(db, 'chats', result.chatId, 'messages');
                 await addDoc(messagesRef, {
-                    text: `${userProfile.displayName} connected with ${partner.displayName}`,
+                    text: `${userProfile.displayName} connected with ${result.partner.displayName}`,
                     createdAt: serverTimestamp(),
                     uid: 'system',
                     photoURL: '',
                     displayName: 'System',
                     isSystemMessage: true
                 });
-
-                // Update both users to chatting status
-                await setDoc(userRef, { status: 'chatting', currentChatId: newChatRef.id }, { merge: true });
-                await setDoc(partnerRef, { status: 'chatting', currentChatId: newChatRef.id }, { merge: true });
-                
-                // The onSnapshot listener will handle the state transition
-            } else {
-                // No waiting users found, stay in waiting state
-                console.log('No waiting users found, staying in waiting state');
             }
+
+            // The onSnapshot listener will handle the state transition
         } catch (error) {
             console.error("Matchmaking failed: ", error);
-            await setDoc(userRef, { status: 'matchmaking' }, { merge: true });
-            setAppState('matchmaking');
+            // If transaction fails, try again after a short delay
+            setTimeout(async () => {
+                try {
+                    await setDoc(userRef, { status: 'waiting' }, { merge: true });
+                } catch (retryError) {
+                    console.error("Retry failed:", retryError);
+                    await setDoc(userRef, { status: 'matchmaking' }, { merge: true });
+                    setAppState('matchmaking');
+                }
+            }, 1000);
         }
     };
 
@@ -331,6 +352,30 @@ export default function App() {
             window.removeEventListener('pagehide', handleBeforeUnload);
         };
     }, [user, userProfile]);
+
+    // Effect to handle cleanup when user disconnects while waiting
+    useEffect(() => {
+        let cleanupTimer;
+        
+        if (appState === 'waiting' && user) {
+            // Set a timeout to clean up if user stays in waiting too long
+            cleanupTimer = setTimeout(async () => {
+                try {
+                    const userRef = doc(db, 'users', user.uid);
+                    await setDoc(userRef, { status: 'matchmaking' }, { merge: true });
+                    setAppState('matchmaking');
+                } catch (error) {
+                    console.error("Cleanup failed:", error);
+                }
+            }, 30000); // 30 seconds timeout
+        }
+        
+        return () => {
+            if (cleanupTimer) {
+                clearTimeout(cleanupTimer);
+            }
+        };
+    }, [appState, user]);
 
     switch (appState) {
         case 'loading':
