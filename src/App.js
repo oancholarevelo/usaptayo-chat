@@ -46,24 +46,50 @@ export default function App() {
 
     // Effect for handling auth and user profile state
     useEffect(() => {
-        signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
+        const initializeAuth = async () => {
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Anonymous sign-in failed:", error);
+                setAppState('homepage'); // Fallback to homepage if auth fails
+            }
+        };
+
+        initializeAuth();
 
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            console.log("Auth state changed:", currentUser?.uid);
             if (currentUser) {
                 setUser(currentUser);
-                const userRef = doc(db, 'users', currentUser.uid);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                    const profile = userSnap.data();
-                    setUserProfile(profile);
-                    setAppState(profile.status || 'matchmaking');
-                    if (profile.status === 'chatting' && profile.currentChatId) {
-                        setChatId(profile.currentChatId);
+                try {
+                    const userRef = doc(db, 'users', currentUser.uid);
+                    const userSnap = await getDoc(userRef);
+                    if (userSnap.exists()) {
+                        const profile = userSnap.data();
+                        console.log("User profile found:", profile);
+                        console.log("Profile status:", profile.status, "Type:", typeof profile.status);
+                        setUserProfile(profile);
+                        
+                        // Ensure status is valid, default to 'homepage' if undefined/null
+                        const validStatus = profile.status && ['homepage', 'nickname', 'matchmaking', 'waiting', 'chatting', 'chat_ended'].includes(profile.status) 
+                            ? profile.status 
+                            : 'homepage';
+                        console.log("Setting app state to:", validStatus);
+                        setAppState(validStatus);
+                        
+                        if ((profile.status === 'chatting' || profile.status === 'chat_ended') && profile.currentChatId) {
+                            setChatId(profile.currentChatId);
+                        }
+                    } else {
+                        console.log("No user profile found, showing homepage");
+                        setAppState('homepage'); // Show homepage for new users
                     }
-                } else {
-                    setAppState('homepage'); // Show homepage for new users
+                } catch (error) {
+                    console.error("Error fetching user profile:", error);
+                    setAppState('homepage'); // Fallback to homepage if database error
                 }
             } else {
+                console.log("No user authenticated");
                 setUser(null);
                 setUserProfile(null);
                 setAppState('loading');
@@ -76,13 +102,23 @@ export default function App() {
     // Effect for listening to user status changes (e.g., when a match is found)
     useEffect(() => {
         if (!user) return;
+        console.log("Setting up user status listener for:", user.uid);
         const userRef = doc(db, 'users', user.uid);
         const unsubscribe = onSnapshot(userRef, (doc) => {
             if (doc.exists()) {
                 const data = doc.data();
+                console.log("User status updated:", data);
+                console.log("Updated status:", data.status, "Type:", typeof data.status);
                 setUserProfile(data);
-                setAppState(data.status);
-                if (data.status === 'chatting') {
+                
+                // Ensure status is valid, default to 'homepage' if undefined/null
+                const validStatus = data.status && ['homepage', 'nickname', 'matchmaking', 'waiting', 'chatting', 'chat_ended'].includes(data.status) 
+                    ? data.status 
+                    : 'homepage';
+                console.log("Updating app state to:", validStatus);
+                setAppState(validStatus);
+                
+                if (data.status === 'chatting' || data.status === 'chat_ended') {
                     setChatId(data.currentChatId);
                 }
             }
@@ -186,16 +222,49 @@ export default function App() {
             const batch = writeBatch(db);
             const usersInChat = chatSnap.data().users;
 
+            // Add a disconnection message to the chat
+            const messagesRef = collection(db, 'chats', chatId, 'messages');
+            await addDoc(messagesRef, {
+                text: `${userProfile.displayName} has left the chat`,
+                createdAt: serverTimestamp(),
+                uid: 'system',
+                photoURL: '',
+                displayName: 'System',
+                isSystemMessage: true
+            });
+
+            // Update chat status to ended
+            batch.update(chatRef, { 
+                status: 'ended',
+                endedAt: serverTimestamp(),
+                endedBy: user.uid
+            });
+
+            // Update user statuses - only the one who ended goes back to matchmaking
             usersInChat.forEach(uid => {
                 const userRef = doc(db, 'users', uid);
-                batch.update(userRef, { status: 'matchmaking', currentChatId: null });
+                if (uid === user.uid) {
+                    // User who ended the chat goes back to matchmaking
+                    batch.update(userRef, { status: 'matchmaking', currentChatId: null });
+                } else {
+                    // Other user stays in chat but with ended status
+                    batch.update(userRef, { status: 'chat_ended', currentChatId: chatId });
+                }
             });
-            
-            // Optional: delete the chat document and its messages
-            batch.delete(chatRef);
 
             await batch.commit();
         }
+        setChatId(null);
+        setAppState('matchmaking');
+    };
+
+    const leaveEndedChat = async () => {
+        if (!user) return;
+        
+        // Clear the user's current chat and go back to matchmaking
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, { status: 'matchmaking', currentChatId: null }, { merge: true });
+        
         setChatId(null);
         setAppState('matchmaking');
     };
@@ -267,10 +336,25 @@ export default function App() {
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                 </>
             );
-        default:
+        case 'chat_ended':
             return (
                 <>
-                    <LoadingScreen text="An error occurred." />
+                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={leaveEndedChat} chatEnded={true} />
+                    {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
+                    {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                </>
+            );
+        default:
+            console.log("Unknown app state:", appState);
+            return (
+                <>
+                    <div className="centered-screen">
+                        <div className="prompt-box">
+                            <h1>UsapTayo</h1>
+                            <p>Something went wrong. Current state: {appState}</p>
+                            <button onClick={() => setAppState('homepage')}>Go to Homepage</button>
+                        </div>
+                    </div>
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                 </>
@@ -400,18 +484,21 @@ const MatchmakingScreen = ({ onFindChat, onReset }) => {
     );
 };
 
-const ChatPage = ({ userProfile, chatId, onEndChat }) => (
+const ChatPage = ({ userProfile, chatId, onEndChat, chatEnded }) => (
     <div className="chat-page">
-        <Header onEndChat={onEndChat} />
+        <Header onEndChat={onEndChat} chatEnded={chatEnded} />
         <ChatRoom userProfile={userProfile} chatId={chatId} />
-        <MessageInput userProfile={userProfile} chatId={chatId} />
+        {!chatEnded && <MessageInput userProfile={userProfile} chatId={chatId} />}
+        {chatEnded && <DisconnectedNotice />}
     </div>
 );
 
-const Header = ({ onEndChat }) => (
+const Header = ({ onEndChat, chatEnded }) => (
     <header className="header">
         <h1>UsapTayo</h1>
-        <button onClick={onEndChat}>End Chat</button>
+        <button onClick={onEndChat}>
+            {chatEnded ? 'Leave Chat' : 'End Chat'}
+        </button>
     </header>
 );
 
@@ -443,7 +530,17 @@ const ChatRoom = ({ userProfile, chatId }) => {
 };
 
 const ChatMessage = ({ message, currentUserUID }) => {
-    const { text, uid, photoURL, displayName } = message;
+    const { text, uid, photoURL, displayName, isSystemMessage } = message;
+    
+    // Handle system messages differently
+    if (isSystemMessage) {
+        return (
+            <div className="system-message">
+                <p>{text}</p>
+            </div>
+        );
+    }
+    
     const messageClass = uid === currentUserUID ? 'sent' : 'received';
     return (
         <div className={`message-container ${messageClass}`}>
@@ -515,5 +612,12 @@ const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
                 </div>
             </div>
         </div>
+    </div>
+);
+
+// Disconnected Notice Component
+const DisconnectedNotice = () => (
+    <div className="disconnected-notice">
+        <p>The other user has left the chat. You can still read your conversation history above.</p>
     </div>
 );
