@@ -25,7 +25,7 @@ const db = getFirestore(app);
 export default function App() {
     const [user, setUser] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
-    const [appState, setAppState] = useState('loading'); // loading, nickname, matchmaking, waiting, chatting
+    const [appState, setAppState] = useState('loading'); // loading, homepage, nickname, matchmaking, waiting, chatting
     const [chatId, setChatId] = useState(null);
 
     // Effect for handling auth and user profile state
@@ -45,7 +45,7 @@ export default function App() {
                         setChatId(profile.currentChatId);
                     }
                 } else {
-                    setAppState('nickname');
+                    setAppState('homepage'); // Show homepage for new users
                 }
             } else {
                 setUser(null);
@@ -73,6 +73,10 @@ export default function App() {
         });
         return () => unsubscribe();
     }, [user]);
+
+    const handleHomepageAccept = () => {
+        setAppState('nickname');
+    };
 
     const handleProfileCreate = async (nickname) => {
         if (!user) return;
@@ -154,6 +158,8 @@ export default function App() {
     switch (appState) {
         case 'loading':
             return <LoadingScreen text="Loading..." />;
+        case 'homepage':
+            return <Homepage onAccept={handleHomepageAccept} />;
         case 'nickname':
             return <NicknamePrompt onProfileCreate={handleProfileCreate} />;
         case 'matchmaking':
@@ -168,6 +174,81 @@ export default function App() {
 }
 
 // --- UI Components ---
+
+const Homepage = ({ onAccept }) => {
+    const [isOver18, setIsOver18] = useState(false);
+    const [agreeTerms, setAgreeTerms] = useState(false);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (isOver18 && agreeTerms) {
+            onAccept();
+        }
+    };
+
+    return (
+        <div className="homepage">
+            <div className="homepage-content">
+                <h1>What is UsapTayo</h1>
+                <p>
+                    UsapTayo is a special place just for college and university students in the Philippines. 
+                    It's a place where students can connect, talk about their university experiences, help each 
+                    other with school stuff, and make friends with others going through the college journey. 
+                    Join us on UsapTayo for a friendly community made especially for college and university 
+                    students aged 18 and above. Let's chat, learn, and grow together!
+                </p>
+
+                <h2>Terms and Conditions</h2>
+                <p>By using UsapTayo, you agree to the following terms and conditions:</p>
+                <ul>
+                    <li>You must be at least 18 years old to use UsapTayo. By checking the box below, you confirm that you are over 18 years old.</li>
+                    <li>You are solely responsible for your interactions and the messages you send on UsapTayo.</li>
+                    <li>Do not send any illegal, harmful, threatening, abusive, harassing, defamatory, vulgar, obscene, hateful, or racially, ethnically, or otherwise objectionable messages on UsapTayo.</li>
+                    <li>Do not impersonate any other person or entity on UsapTayo.</li>
+                    <li>We reserve the right to terminate access to UsapTayo for users who violate our community guidelines.</li>
+                </ul>
+
+                <h2>Disclaimer of Liability</h2>
+                <p>
+                    UsapTayo is provided on an "as is" basis. We make no warranties, express or implied, about the 
+                    operation of UsapTayo or the information, content, materials, or products included on UsapTayo. 
+                    You expressly agree that your use of UsapTayo is at your sole risk.
+                </p>
+                <p>
+                    To the fullest extent permitted by law, we disclaim all liability for any direct, indirect, 
+                    incidental, special, consequential, or exemplary damages arising out of or in connection with 
+                    your use of UsapTayo, whether based on contract, tort, strict liability, or otherwise.
+                </p>
+
+                <form onSubmit={handleSubmit} className="homepage-form">
+                    <div className="checkbox-container">
+                        <label>
+                            <input 
+                                type="checkbox" 
+                                checked={isOver18} 
+                                onChange={(e) => setIsOver18(e.target.checked)} 
+                            />
+                            I confirm that I am over 18 years old.
+                        </label>
+                    </div>
+                    <div className="checkbox-container">
+                        <label>
+                            <input 
+                                type="checkbox" 
+                                checked={agreeTerms} 
+                                onChange={(e) => setAgreeTerms(e.target.checked)} 
+                            />
+                            I agree to UsapTayo's terms and conditions.
+                        </label>
+                    </div>
+                    <button type="submit" disabled={!isOver18 || !agreeTerms}>
+                        Let's Go
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
 
 const LoadingScreen = ({ text }) => (
     <div className="centered-screen loading-animation">
