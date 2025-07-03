@@ -100,6 +100,12 @@ REACT_APP_FIREBASE_APP_ID=your-app-id
 REACT_APP_FIREBASE_MEASUREMENT_ID=your-measurement-id
 ```
 
+**Important Notes:**
+- The app includes fallback values for development, so it will work even without a `.env` file
+- Always restart your development server after creating or modifying the `.env` file
+- Environment variables in React must be prefixed with `REACT_APP_`
+- For production deployments (like Vercel), set these variables in your hosting platform's environment settings
+
 **Note**: The `.env` file is automatically ignored by Git for security.
 
 ### Firestore Rules
@@ -254,7 +260,31 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **React** for the frontend framework
 - **Create React App** for the initial project setup
 
-## 📞 Support
+## � Troubleshooting
+
+### Environment Variables Not Loading
+
+If you're getting Firebase errors or the app isn't working:
+
+1. **Restart the development server** after creating or modifying `.env`
+2. **Check variable names** - they must be prefixed with `REACT_APP_`
+3. **Verify .env file location** - it should be in the project root, not in `src/`
+4. **Check for syntax errors** in `.env` - no spaces around `=`, no quotes needed for values
+5. **Clear browser cache** and refresh the page
+
+### Common Issues
+
+- **"Firebase invalid API key"** - Usually means environment variables aren't loaded (restart dev server)
+- **"Permission denied"** - Check your Firebase Firestore rules
+- **Mobile UI issues** - Test on actual mobile devices, not just browser dev tools
+- **Chat not working** - Verify Firebase project is active and billing is enabled
+
+### Development vs Production
+
+- **Development**: App works with fallback values even without `.env`
+- **Production**: Must set environment variables in your hosting platform (Vercel, Netlify, etc.)
+
+## �📞 Support
 
 For support, email support@usaptayo.com or open an issue on GitHub.
 

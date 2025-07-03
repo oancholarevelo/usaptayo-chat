@@ -7,13 +7,13 @@ import './App.css'; // Import the CSS file
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyAA-AIF29Y0QB0A34rtA3MxOPRcAXzsuKQ",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "usaptayo-chat.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "usaptayo-chat",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "usaptayo-chat.firebasestorage.app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "793461396179",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:793461396179:web:259b12c1aab3bb46d4fa26",
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-H6X3PY5FVB"
 };
 
 // --- Initialize Firebase ---
