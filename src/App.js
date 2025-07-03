@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, setDoc, limit, where, runTransaction, getDocs, writeBatch } from 'firebase/firestore';
+import { Analytics } from "@vercel/analytics/react";
 import './App.css'; // Import the CSS file
 
 // --- Firebase Configuration ---
@@ -323,6 +324,7 @@ export default function App() {
                     <LoadingScreen text="Loading..." />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    <Analytics />
                 </>
             );
         case 'homepage':
@@ -331,6 +333,7 @@ export default function App() {
                     <Homepage onAccept={handleHomepageAccept} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    <Analytics />
                 </>
             );
         case 'nickname':
@@ -339,6 +342,7 @@ export default function App() {
                     <NicknamePrompt onProfileCreate={handleProfileCreate} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    <Analytics />
                 </>
             );
         case 'matchmaking':
@@ -347,6 +351,7 @@ export default function App() {
                     <MatchmakingScreen onFindChat={findChat} onReset={handleReset} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    <Analytics />
                 </>
             );
         case 'waiting':
@@ -355,6 +360,7 @@ export default function App() {
                     <LoadingScreen text="Connecting to a stranger..." />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    <Analytics />
                 </>
             );
         case 'chatting':
@@ -363,6 +369,7 @@ export default function App() {
                     <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={endChat} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    <Analytics />
                 </>
             );
         case 'chat_ended':
@@ -371,6 +378,7 @@ export default function App() {
                     <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={leaveEndedChat} chatEnded={true} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    <Analytics />
                 </>
             );
         default:
@@ -385,6 +393,7 @@ export default function App() {
                     </div>
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    <Analytics />
                 </>
             );
     }
