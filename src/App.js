@@ -564,13 +564,31 @@ const ChatRoom = ({ userProfile, chatId }) => {
 
     return (
         <main className="chat-room">
-            {messages.map(msg => <ChatMessage key={msg.id} message={msg} currentUserUID={userProfile.uid} />)}
+            {messages.map((msg, index) => {
+                const prevMessage = index > 0 ? messages[index - 1] : null;
+                const isGrouped = prevMessage && 
+                    prevMessage.uid === msg.uid && 
+                    !prevMessage.isSystemMessage &&
+                    !msg.isSystemMessage &&
+                    msg.createdAt && 
+                    prevMessage.createdAt &&
+                    (msg.createdAt.seconds - prevMessage.createdAt.seconds) < 60;
+                
+                return (
+                    <ChatMessage 
+                        key={msg.id} 
+                        message={msg} 
+                        currentUserUID={userProfile.uid}
+                        isGrouped={isGrouped}
+                    />
+                );
+            })}
             <div ref={dummy} className="dummy-div"></div>
         </main>
     );
 };
 
-const ChatMessage = ({ message, currentUserUID }) => {
+const ChatMessage = ({ message, currentUserUID, isGrouped }) => {
     const { text, uid, photoURL, displayName, isSystemMessage } = message;
     
     // Handle system messages differently
@@ -584,11 +602,13 @@ const ChatMessage = ({ message, currentUserUID }) => {
     
     const messageClass = uid === currentUserUID ? 'sent' : 'received';
     return (
-        <div className={`message-container ${messageClass}`}>
+        <div className={`message-container ${messageClass} ${isGrouped ? 'grouped' : ''}`}>
             <div className="message-inner">
-                <img src={photoURL || `https://placehold.co/40x40/8b5cf6/ffffff?text=${displayName?.[0] || 'U'}`} alt="User Avatar" />
+                {!isGrouped && (
+                    <img src={photoURL || `https://placehold.co/40x40/8b5cf6/ffffff?text=${displayName?.[0] || 'U'}`} alt="User Avatar" />
+                )}
                 <div className={`message-bubble ${messageClass}`}>
-                    <p className="display-name">{displayName || 'Anonymous'}</p>
+                    {!isGrouped && <p className="display-name">{displayName || 'Anonymous'}</p>}
                     <p>{text}</p>
                 </div>
             </div>
