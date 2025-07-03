@@ -46,6 +46,14 @@ export default function App() {
 
     // Effect for handling auth and user profile state
     useEffect(() => {
+        // Clear any existing data on fresh app load
+        const sessionId = sessionStorage.getItem('usaptayo-session');
+        if (!sessionId) {
+            // New session - clear any cached data
+            localStorage.removeItem('usaptayo-user');
+            sessionStorage.setItem('usaptayo-session', Date.now().toString());
+        }
+
         const initializeAuth = async () => {
             try {
                 await signInAnonymously(auth);
@@ -58,7 +66,6 @@ export default function App() {
         initializeAuth();
 
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            console.log("Auth state changed:", currentUser?.uid);
             if (currentUser) {
                 setUser(currentUser);
                 try {
@@ -66,22 +73,29 @@ export default function App() {
                     const userSnap = await getDoc(userRef);
                     if (userSnap.exists()) {
                         const profile = userSnap.data();
-                        console.log("User profile found:", profile);
-                        console.log("Profile status:", profile.status, "Type:", typeof profile.status);
+                        
+                        // Check if this is a fresh session - if so, always start from homepage
+                        const isNewSession = !sessionStorage.getItem('usaptayo-user-loaded');
+                        if (isNewSession) {
+                            sessionStorage.setItem('usaptayo-user-loaded', 'true');
+                            // Clear the user profile and start fresh
+                            await setDoc(userRef, {}, { merge: false });
+                            setAppState('homepage');
+                            return;
+                        }
+                        
                         setUserProfile(profile);
                         
                         // Ensure status is valid, default to 'homepage' if undefined/null
                         const validStatus = profile.status && ['homepage', 'nickname', 'matchmaking', 'waiting', 'chatting', 'chat_ended'].includes(profile.status) 
                             ? profile.status 
                             : 'homepage';
-                        console.log("Setting app state to:", validStatus);
                         setAppState(validStatus);
                         
                         if ((profile.status === 'chatting' || profile.status === 'chat_ended') && profile.currentChatId) {
                             setChatId(profile.currentChatId);
                         }
                     } else {
-                        console.log("No user profile found, showing homepage");
                         setAppState('homepage'); // Show homepage for new users
                     }
                 } catch (error) {
@@ -89,7 +103,6 @@ export default function App() {
                     setAppState('homepage'); // Fallback to homepage if database error
                 }
             } else {
-                console.log("No user authenticated");
                 setUser(null);
                 setUserProfile(null);
                 setAppState('loading');
@@ -102,20 +115,16 @@ export default function App() {
     // Effect for listening to user status changes (e.g., when a match is found)
     useEffect(() => {
         if (!user) return;
-        console.log("Setting up user status listener for:", user.uid);
         const userRef = doc(db, 'users', user.uid);
         const unsubscribe = onSnapshot(userRef, (doc) => {
             if (doc.exists()) {
                 const data = doc.data();
-                console.log("User status updated:", data);
-                console.log("Updated status:", data.status, "Type:", typeof data.status);
                 setUserProfile(data);
                 
                 // Ensure status is valid, default to 'homepage' if undefined/null
                 const validStatus = data.status && ['homepage', 'nickname', 'matchmaking', 'waiting', 'chatting', 'chat_ended'].includes(data.status) 
                     ? data.status 
                     : 'homepage';
-                console.log("Updating app state to:", validStatus);
                 setAppState(validStatus);
                 
                 if (data.status === 'chatting' || data.status === 'chat_ended') {
@@ -269,8 +278,20 @@ export default function App() {
         setAppState('matchmaking');
     };
 
-    // Effect for handling tab close - automatically reset user
+    // Effect for handling tab visibility and cleanup
     useEffect(() => {
+        const handleVisibilityChange = async () => {
+            if (document.visibilityState === 'hidden' && user && userProfile) {
+                // Clean up when tab becomes hidden (works better on mobile)
+                try {
+                    const userRef = doc(db, 'users', user.uid);
+                    await setDoc(userRef, {}, { merge: false });
+                } catch (error) {
+                    console.error("Error cleaning up on visibility change:", error);
+                }
+            }
+        };
+
         const handleBeforeUnload = async (event) => {
             if (user && userProfile) {
                 // Try to clean up user profile when tab is closed
@@ -283,8 +304,16 @@ export default function App() {
             }
         };
 
+        // Add multiple event listeners for better mobile support
+        document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('pagehide', handleBeforeUnload);
+        
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('pagehide', handleBeforeUnload);
+        };
     }, [user, userProfile]);
 
     switch (appState) {
@@ -345,7 +374,6 @@ export default function App() {
                 </>
             );
         default:
-            console.log("Unknown app state:", appState);
             return (
                 <>
                     <div className="centered-screen">
@@ -575,7 +603,9 @@ const MessageInput = ({ userProfile, chatId }) => {
         <form onSubmit={sendMessage} className="message-form">
             <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="Start a conversation..." />
             <button type="submit" disabled={!formValue.trim()}>
-                <svg fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10.894 2.553a1 1 0 00-1.789 0l-2 4A1 1 0 008 8h4a1 1 0 00.894-1.447l-2-4zM10 18a1 1 0 01-1-1v-6a1 1 0 112 0v6a1 1 0 01-1 1z"></path></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                </svg>
             </button>
         </form>
     );
