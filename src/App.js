@@ -574,11 +574,11 @@ export default function App() {
     try {
       // Use a transaction to find and match users atomically
       const result = await runTransaction(db, async (transaction) => {
-        // Query for other waiting users
+        // Query for other waiting users.
+        // The problematic where("uid", "!=", user.uid) clause has been REMOVED.
         const waitingUsersQuery = query(
           collection(db, "users"),
           where("status", "==", "waiting"),
-          where("uid", "!=", user.uid),
           limit(1) // We only need one partner
         );
 
@@ -587,6 +587,14 @@ export default function App() {
         if (!waitingUsersSnap.empty) {
           // --- MATCH FOUND ---
           const partnerDoc = waitingUsersSnap.docs[0];
+          
+          // Safeguard: Make sure we didn't somehow find ourselves.
+          if (partnerDoc.id === user.uid) {
+            console.log("Found myself in the waiting pool, will retry by adding self to pool.");
+            // By returning null, we will proceed to the 'else' logic's outcome
+            return null; 
+          }
+
           const partnerRef = partnerDoc.ref;
           const partner = partnerDoc.data();
 
