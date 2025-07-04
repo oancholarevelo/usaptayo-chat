@@ -66,11 +66,39 @@ export default function App() {
   // Admin access function - triggered by secret keyboard shortcut
   const checkAdminAccess = () => {
     const adminPassword = prompt("Enter admin password:");
-    // Secure admin password
+
     if (adminPassword === "TP9K9p!g4Fq$M-F") {
+      console.log("Admin password verified, attempting state change...");
+
+      // First set isAdmin flag to true
       setIsAdmin(true);
-      setAppState("admin");
+
+      // Then change app state - using a callback to ensure it's based on the latest state
+      setAppState(() => {
+        console.log("Setting app state to admin");
+        return "admin";
+      });
+
+      // Show success notification
       showNotification("Admin access granted! ✨", "success");
+
+      // Update user document to mark as admin (this helps prevent overrides)
+      if (user) {
+        const userRef = doc(db, "users", user.uid);
+        setDoc(
+          userRef,
+          {
+            isAdmin: true,
+            adminAccessGranted: serverTimestamp(),
+            status: "admin",
+          },
+          { merge: true }
+        )
+          .then(() => console.log("User document updated with admin status"))
+          .catch((err) =>
+            console.error("Failed to update user document:", err)
+          );
+      }
     } else {
       showNotification("Invalid admin password!", "error");
     }
@@ -274,164 +302,178 @@ export default function App() {
 
   // Effect for handling auth and user profile state
   useEffect(() => {
-  // More aggressive session management - ALWAYS start fresh on reload/new visit
-  const startFresh = () => {
-    localStorage.removeItem("usaptayo-user");
-    localStorage.removeItem("usaptayo-last-session");
-    sessionStorage.clear();
-    
-    // Set new session flag
-    sessionStorage.setItem("usaptayo-session", Date.now().toString());
-    sessionStorage.setItem("usaptayo-fresh-start", "true");
-    
-    // Force homepage state directly
-    setUserProfile(null);
-    setAppState("homepage");
-    setChatId(null);
-  };
-  
-  // Always start fresh on each page load
-  startFresh();
+    // More aggressive session management - ALWAYS start fresh on reload/new visit
+    const startFresh = () => {
+      localStorage.removeItem("usaptayo-user");
+      localStorage.removeItem("usaptayo-last-session");
+      sessionStorage.clear();
 
-  const initializeAuth = async () => {
-    try {
-      await signInAnonymously(auth);
-    } catch (error) {
-      console.error("Anonymous sign-in failed:", error);
+      // Set new session flag
+      sessionStorage.setItem("usaptayo-session", Date.now().toString());
+      sessionStorage.setItem("usaptayo-fresh-start", "true");
+
+      // Force homepage state directly
+      setUserProfile(null);
       setAppState("homepage");
-    }
-  };
+      setChatId(null);
+    };
 
-  initializeAuth();
+    // Always start fresh on each page load
+    startFresh();
 
-  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-    if (currentUser) {
-      setUser(currentUser);
-      
+    const initializeAuth = async () => {
       try {
-        // Always clear existing user profile in database on new visit
-        const userRef = doc(db, "users", currentUser.uid);
-        await setDoc(userRef, {}, { merge: false });
-        
-        console.log("User profile cleared for fresh start");
-        setUserProfile(null);
-        setAppState("homepage");
-        setChatId(null);
+        await signInAnonymously(auth);
       } catch (error) {
-        console.error("Error handling user profile:", error);
+        console.error("Anonymous sign-in failed:", error);
         setAppState("homepage");
       }
-    } else {
-      setUser(null);
-      setUserProfile(null);
-      setAppState("loading");
-    }
-  });
+    };
 
-  return () => unsubscribe();
-}, []);
+    initializeAuth();
 
-// Effect for listening to user status changes - fix the undefined status issue
-useEffect(() => {
-  if (!user) return;
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
 
-  const userRef = doc(db, "users", user.uid);
-  const unsubscribe = onSnapshot(
-    userRef,
-    (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        console.log(
-          "User status update:",
-          data.status,
-          "for user:",
-          user.uid
-        );
+        try {
+          // Always clear existing user profile in database on new visit
+          const userRef = doc(db, "users", currentUser.uid);
+          await setDoc(userRef, {}, { merge: false });
 
-        // Only update user profile if it has valid data
-        if (data && Object.keys(data).length > 0) {
-          setUserProfile(data);
-
-          // Only process status changes if status is defined and valid
-          if (data.status) {
-            const validStatuses = [
-              "homepage",
-              "nickname",
-              "matchmaking",
-              "waiting",
-              "chatting",
-              "chat_ended",
-            ];
-            
-            const newStatus = validStatuses.includes(data.status)
-              ? data.status
-              : "homepage"; // Default to homepage for invalid/undefined status
-            
-            // Only update app state if it's actually different
-            if (newStatus !== appState) {
-              console.log("Changing app state from", appState, "to", newStatus);
-              setAppState(newStatus);
-            }
-
-            // Handle chat ID updates
-            if (
-              (data.status === "chatting" || data.status === "chat_ended") &&
-              data.currentChatId
-            ) {
-              if (chatId !== data.currentChatId) {
-                console.log("Setting chat ID to:", data.currentChatId);
-                setChatId(data.currentChatId);
-              }
-            } else if (data.status === "matchmaking" && chatId) {
-              // Clear chat ID when going back to matchmaking
-              setChatId(null);
-            }
-          } else {
-            // If status is undefined, set to homepage
-            console.log("User has undefined status, defaulting to homepage");
-            setAppState("homepage");
-          }
-        } else {
-          // Empty profile should default to homepage
-          console.log("Empty user profile, defaulting to homepage");
+          console.log("User profile cleared for fresh start");
+          setUserProfile(null);
+          setAppState("homepage");
+          setChatId(null);
+        } catch (error) {
+          console.error("Error handling user profile:", error);
           setAppState("homepage");
         }
       } else {
-        // Document doesn't exist, default to homepage
-        console.log("User document doesn't exist, defaulting to homepage");
+        setUser(null);
+        setUserProfile(null);
+        setAppState("loading");
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Effect for listening to user status changes - fix the undefined status issue
+  useEffect(() => {
+    if (!user) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const unsubscribe = onSnapshot(
+      userRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          console.log(
+            "User status update:",
+            data.status,
+            "for user:",
+            user.uid
+          );
+
+          // Only update user profile if it has valid data
+          if (data && Object.keys(data).length > 0) {
+            setUserProfile(data);
+
+            // Don't override admin state when listening to user status changes
+            if (isAdmin && appState === "admin") {
+              console.log(
+                "Preserving admin state, ignoring user status update"
+              );
+              return;
+            }
+
+            // Only process status changes if status is defined and valid
+            if (data.status) {
+              const validStatuses = [
+                "homepage",
+                "nickname",
+                "matchmaking",
+                "waiting",
+                "chatting",
+                "chat_ended",
+                "admin",
+              ];
+
+              const newStatus = validStatuses.includes(data.status)
+                ? data.status
+                : "homepage"; // Default to homepage for invalid/undefined status
+
+              // Only update app state if it's actually different
+              if (newStatus !== appState) {
+                console.log(
+                  "Changing app state from",
+                  appState,
+                  "to",
+                  newStatus
+                );
+                setAppState(newStatus);
+              }
+
+              // Handle chat ID updates
+              if (
+                (data.status === "chatting" || data.status === "chat_ended") &&
+                data.currentChatId
+              ) {
+                if (chatId !== data.currentChatId) {
+                  console.log("Setting chat ID to:", data.currentChatId);
+                  setChatId(data.currentChatId);
+                }
+              } else if (data.status === "matchmaking" && chatId) {
+                // Clear chat ID when going back to matchmaking
+                setChatId(null);
+              }
+            } else {
+              // If status is undefined, set to homepage
+              console.log("User has undefined status, defaulting to homepage");
+              setAppState("homepage");
+            }
+          } else {
+            // Empty profile should default to homepage
+            console.log("Empty user profile, defaulting to homepage");
+            setAppState("homepage");
+          }
+        } else {
+          // Document doesn't exist, default to homepage
+          console.log("User document doesn't exist, defaulting to homepage");
+          setAppState("homepage");
+        }
+      },
+      (error) => {
+        console.error("User status listener error:", error);
+        // On error, default to homepage
         setAppState("homepage");
       }
-    },
-    (error) => {
-      console.error("User status listener error:", error);
-      // On error, default to homepage
-      setAppState("homepage");
-    }
-  );
+    );
 
-  return () => unsubscribe();
-}, [user, appState, chatId]);
+    return () => unsubscribe();
+  }, [user, appState, chatId, isAdmin]);
 
   const handleHomepageAccept = async () => {
-  if (user) {
-    // Update user document in Firestore first
-    try {
-      const userRef = doc(db, "users", user.uid);
-      await setDoc(userRef, { status: "nickname" }, { merge: true });
-      console.log("User status updated to nickname in Firestore");
-      
-      // Then update local state
-      setAppState("nickname");
-    } catch (error) {
-      console.error("Error updating user status:", error);
-      // Still update local state even if Firestore update fails
+    if (user) {
+      // Update user document in Firestore first
+      try {
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(userRef, { status: "nickname" }, { merge: true });
+        console.log("User status updated to nickname in Firestore");
+
+        // Then update local state
+        setAppState("nickname");
+      } catch (error) {
+        console.error("Error updating user status:", error);
+        // Still update local state even if Firestore update fails
+        setAppState("nickname");
+      }
+    } else {
+      // If no user yet, just update local state
       setAppState("nickname");
     }
-  } else {
-    // If no user yet, just update local state
-    setAppState("nickname");
-  }
-};
+  };
 
   const handleProfileCreate = async (nickname) => {
     if (!user) return;
@@ -489,17 +531,19 @@ useEffect(() => {
   useEffect(() => {
     // Force a complete reset on each page load by setting a page load timestamp
     const currentLoadTime = Date.now();
-    const lastLoadTime = parseInt(localStorage.getItem("usaptayo-page-loaded") || "0");
-    
+    const lastLoadTime = parseInt(
+      localStorage.getItem("usaptayo-page-loaded") || "0"
+    );
+
     // If returning within 3 seconds, it's likely a refresh/navigation
     // If more than 3 seconds, it's likely a new visit
     if (currentLoadTime - lastLoadTime > 3000) {
       console.log("New page visit detected - resetting to homepage");
       localStorage.setItem("usaptayo-force-homepage", "true");
     }
-    
+
     localStorage.setItem("usaptayo-page-loaded", currentLoadTime.toString());
-    
+
     // Check if we need to force homepage
     const forceHomepage = localStorage.getItem("usaptayo-force-homepage");
     if (forceHomepage) {
@@ -512,7 +556,6 @@ useEffect(() => {
     if (!user) return;
 
     console.log("Starting matchmaking for user:", user.uid);
-    setAppState("waiting");
 
     const userRef = doc(db, "users", user.uid);
     await setDoc(
@@ -614,21 +657,23 @@ useEffect(() => {
         // Add connection messages for both users
         const messagePromises = [
           addDoc(messagesRef, {
-            text: `You connected with ${result.partner.displayName}`,
+            text: `May ka-talking stage ka na: ${result.partner.displayName}! Go na, bestie. 💅`,
             createdAt: serverTimestamp(),
             uid: "system",
             photoURL: "",
             displayName: "System",
             isSystemMessage: true,
+            type: "connection",
             visibleTo: user.uid,
           }),
           addDoc(messagesRef, {
-            text: `You connected with ${userProfile.displayName}`,
+            text: `May ka-talking stage ka na: ${userProfile.displayName}! Go na, bestie. 💅`,
             createdAt: serverTimestamp(),
             uid: "system",
             photoURL: "",
             displayName: "System",
             isSystemMessage: true,
+            type: "connection",
             visibleTo: result.partner.uid,
           }),
         ];
@@ -688,12 +733,13 @@ useEffect(() => {
       // Add a disconnection message to the chat
       const messagesRef = collection(db, "chats", chatId, "messages");
       await addDoc(messagesRef, {
-        text: `${userProfile.displayName} has left the chat`,
+        text: `Plot twist: ${userProfile.displayName} ghosted. 👻`,
         createdAt: serverTimestamp(),
         uid: "system",
         photoURL: "",
         displayName: "System",
         isSystemMessage: true,
+        type: "disconnection",
       });
 
       // Update chat status to ended
@@ -1079,7 +1125,6 @@ useEffect(() => {
     case "chatting":
       return (
         <>
-          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
           <ChatPage
             userProfile={userProfile}
             chatId={chatId}
@@ -1087,6 +1132,8 @@ useEffect(() => {
             activeAnnouncement={activeAnnouncement}
             onShowAnnouncementModal={showAnnouncementModal}
             onSecretTap={handleSecretTap}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
           {notification.show && (
             <NotificationToast
@@ -1125,7 +1172,7 @@ useEffect(() => {
             chatId={chatId}
             onEndChat={leaveEndedChat}
             onNextStranger={findChat}
-            onBackHome={() => setAppState("matchmaking")}
+            onBackHome={leaveEndedChat}
             chatEnded={true}
             activeAnnouncement={activeAnnouncement}
             onShowAnnouncementModal={showAnnouncementModal}
@@ -1244,51 +1291,26 @@ const Homepage = ({ onAccept, onSecretTap }) => {
           onClick={onSecretTap}
           style={{ cursor: "default", userSelect: "none" }}
         >
-          Welcome to UsapTayo
+          UsapTayo: Find Your 'Lowkey' ✨
         </h1>
         <p>
-          Welcome to UsapTayo, where main character energy meets mystery! ✨
-          Chat anonymously with strangers and create those butterfly moments
-          you've been craving. Whether you're looking for deep 3am
-          conversations, someone to understand your vibe, or just want to feel
-          seen by a stranger who gets it - this is your safe space to connect.
-          No filters, no follows, just pure authentic energy and maybe that
-          spark you've been manifesting. 💫
+          Your main character era starts here. Dito, you can find your "ka-talking stage" or ka-situationship nang lowkey lang. It's giving 'Every Summertime' vibes—no strings, just pure, authentic energy. Baka dito mo na mahanap 'yung ka-vibe mo. 💫
         </p>
 
         <h2>The Vibe Check 📱</h2>
-        <p>Keep the energy good and the vibes immaculate:</p>
+        <p>Para iwas-gulo at para good vibes lang tayong lahat:</p>
         <ul>
-          <li>Be 18+ because we're keeping it mature and respectful 💅</li>
-          <li>Spread good vibes only - toxic energy is not it, bestie</li>
-          <li>
-            Keep it mysterious! No real names, addresses, or socials - that's
-            the whole point ✨
-          </li>
-          <li>No sending anything that would make your future self cringe</li>
-          <li>
-            Don't be that person who spams or tries to sell stuff - we're here
-            for connections, not transactions
-          </li>
-          <li>
-            If someone's giving you the ick, use the report button - we got you!
-            🛡️
-          </li>
+          <li><strong>18+ Only:</strong> Para legal ang feelings at usapan. 😉</li>
+          <li><strong>Be a Vibe:</strong> Don't kill the vibe. Bawal ang toxic dito. 💅</li>
+          <li><strong>Keep it Mystery:</strong> No real names or socials muna. The plot twist is part of the fun! ✨</li>
+          <li><strong>SFW Only:</strong> Keep it classy. Don't send anything you wouldn't want your lola to see.</li>
+          <li><strong>No to Budol:</strong> We're here for connections, not transactions. Bawal mag-solicit or mag-spam.</li>
+          <li><strong>'Wag Kang Maging Marupok:</strong> But if someone gives you the ick, use the report button. We gotchu! 🛡️</li>
         </ul>
 
-        <h2>Your Secret is Safe ✨</h2>
+        <h2>Your Secret is Safe 🤫</h2>
         <p>
-          Plot twist: everything here disappears like it never happened! 👻 Your
-          chats are temporary, your identity stays mysterious, and we don't keep
-          receipts. It's giving witness protection but make it romantic.
-          Remember though - stranger danger is still real, so keep your personal
-          tea to yourself!
-        </p>
-        <p>
-          By entering this digital diary, you're agreeing to use your brain and
-          keep things cute. We're not responsible for whatever chaos happens
-          between you and your mystery person - that's between y'all and the
-          universe! 🌙
+          Plot twist: everything here disappears. Ghosting is a feature, not a bug. 👻 Your chats are temporary, your identity is a mystery. We don't keep receipts, so you can be your true self without the digital footprint. Tandaan: stranger danger is real, so keep your personal deets to yourself!
         </p>
 
         <form onSubmit={handleSubmit} className="homepage-form">
@@ -1299,7 +1321,7 @@ const Homepage = ({ onAccept, onSecretTap }) => {
                 checked={isOver18}
                 onChange={(e) => setIsOver18(e.target.checked)}
               />
-              I'm 18+ and ready for the mystery ✨
+              18+ na 'ko and ready for my plot twist ✨
             </label>
           </div>
           <div className="checkbox-container">
@@ -1309,11 +1331,11 @@ const Homepage = ({ onAccept, onSecretTap }) => {
                 checked={agreeTerms}
                 onChange={(e) => setAgreeTerms(e.target.checked)}
               />
-              I promise to keep the vibes immaculate and respect the space 💫
+              I promise to be a vibe and not a virus 💫
             </label>
           </div>
           <button type="submit" disabled={!isOver18 || !agreeTerms}>
-            Enter the Mystery ✨
+            Bet, Let's Go! ✨
           </button>
         </form>
       </div>
@@ -1335,7 +1357,9 @@ const LoadingScreen = ({ text, onSecretTap }) => (
         <span></span>
         <span></span>
       </div>
-      {text === "Loading..." && <p>Getting your vibe ready... ✨</p>}
+      {/* Updated Text Below */}
+      {text === "Loading..." && <p>Prepping the vibes... ✨</p>}
+      {text === "Manifesting your person... 💫✨" && <p>Manifesting your ka-usap... 💫✨</p>}
     </div>
   </div>
 );
@@ -1355,16 +1379,17 @@ const NicknamePrompt = ({ onProfileCreate, onSecretTap }) => {
         >
           UsapTayo
         </h1>
-        <p>Choose your mystery name, bestie ✨</p>
+        {/* Updated Text Below */}
+        <p>What's your main character name, beh? ✨</p>
         <form onSubmit={handleSubmit}>
           <input
             type="text"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder="Your vibe name..."
+            placeholder="Your alias..."
           />
           <button type="submit" disabled={nickname.trim().length <= 2}>
-            Let's Go! 💫
+            Slay 💅
           </button>
         </form>
       </div>
@@ -1382,10 +1407,11 @@ const MatchmakingScreen = ({ onFindChat, onReset, onSecretTap }) => {
         >
           UsapTayo
         </h1>
-        <p>Ready ka na ba maging backburner?</p>
-        <button onClick={onFindChat}>Find Your Mystery Person 💫</button>
+        {/* Updated Text Below */}
+        <p>Ready ka na ba sa situationship? 😉</p>
+        <button onClick={onFindChat}>Find Your 'Ka-Talking Stage' 💫</button>
         <button onClick={onReset} className="reset-profile-button">
-          Start Fresh ✨
+          Start New Era ✨
         </button>
       </div>
     </div>
@@ -1402,9 +1428,16 @@ const ChatPage = ({
   activeAnnouncement,
   onShowAnnouncementModal,
   onSecretTap,
+  theme,
+  toggleTheme,
 }) => (
   <div className="chat-page">
-    <Header chatEnded={chatEnded} onSecretTap={onSecretTap} />
+    <Header
+      chatEnded={chatEnded}
+      onSecretTap={onSecretTap}
+      theme={theme}
+      toggleTheme={toggleTheme}
+    />
     {activeAnnouncement && (
       <AnnouncementBanner announcement={activeAnnouncement} />
     )}
@@ -1426,19 +1459,35 @@ const ChatPage = ({
   </div>
 );
 
-const Header = ({ chatEnded, onSecretTap }) => (
+const TypingIndicator = () => (
+  <div className="message-container received">
+    {/* The extra wrapper is removed to align it correctly */}
+    <div className="message-bubble received">
+      <div className="typing-indicator">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+);
+
+const Header = ({ chatEnded, onSecretTap, theme, toggleTheme }) => (
   <header className="header">
     <h1 onClick={onSecretTap} style={{ cursor: "default", userSelect: "none" }}>
       UsapTayo
     </h1>
+    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
   </header>
 );
 
 const ChatRoom = ({ userProfile, chatId }) => {
   const [messages, setMessages] = useState([]);
+  const [partnerIsTyping, setPartnerIsTyping] = useState(false);
   const dummy = useRef();
   const chatRoomRef = useRef();
 
+  // Effect to listen for messages
   useEffect(() => {
     if (!chatId) return;
     const messagesRef = collection(db, "chats", chatId, "messages");
@@ -1453,34 +1502,48 @@ const ChatRoom = ({ userProfile, chatId }) => {
     return unsubscribe;
   }, [chatId]);
 
+  // Effect to listen for partner's typing status
   useEffect(() => {
-    // More aggressive scroll to bottom for mobile devices
-    const scrollToBottom = () => {
-      if (dummy.current && chatRoomRef.current) {
-        // Try multiple scroll methods for better mobile compatibility
-        dummy.current.scrollIntoView({
-          behavior: "smooth",
-          block: "end",
-        });
+    if (!chatId || !userProfile) return;
 
-        // Fallback: scroll the chat room container to bottom
-        setTimeout(() => {
-          if (chatRoomRef.current) {
-            chatRoomRef.current.scrollTop = chatRoomRef.current.scrollHeight;
-          }
-        }, 150);
+    let partnerUnsubscribe = () => {};
+
+    const getPartner = async () => {
+      const chatRef = doc(db, "chats", chatId);
+      const chatSnap = await getDoc(chatRef);
+
+      if (chatSnap.exists()) {
+        const users = chatSnap.data().users;
+        const partnerId = users.find((uid) => uid !== userProfile.uid);
+
+        if (partnerId) {
+          const partnerRef = doc(db, "users", partnerId);
+          partnerUnsubscribe = onSnapshot(partnerRef, (partnerDoc) => {
+            if (partnerDoc.exists()) {
+              const partnerData = partnerDoc.data();
+              const isTypingInThisChat =
+                partnerData.isTyping && partnerData.typingInChat === chatId;
+              setPartnerIsTyping(isTypingInThisChat);
+            }
+          });
+        }
       }
     };
 
-    // Use multiple timeouts to ensure scrolling works on mobile
-    const timeoutId1 = setTimeout(scrollToBottom, 100);
-    const timeoutId2 = setTimeout(scrollToBottom, 300); // Second attempt for mobile
+    getPartner();
+    return () => partnerUnsubscribe(); // Cleanup listener on unmount
+  }, [chatId, userProfile]);
 
-    return () => {
-      clearTimeout(timeoutId1);
-      clearTimeout(timeoutId2);
+  // Effect for scrolling to bottom
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (dummy.current) {
+        dummy.current.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
     };
-  }, [messages]);
+    const timeoutId = setTimeout(scrollToBottom, 100);
+    return () => clearTimeout(timeoutId);
+  }, [messages, partnerIsTyping]); // Also scroll when typing indicator appears/disappears
 
   return (
     <main className="chat-room" ref={chatRoomRef}>
@@ -1491,31 +1554,26 @@ const ChatRoom = ({ userProfile, chatId }) => {
           currentUserUID={userProfile.uid}
         />
       ))}
+      {partnerIsTyping && <TypingIndicator />}
       <div ref={dummy} className="dummy-div"></div>
     </main>
   );
 };
 
 const ChatMessage = ({ message, currentUserUID }) => {
-  const { text, uid, photoURL, displayName, isSystemMessage, visibleTo } =
-    message;
+  const { text, uid, displayName, isSystemMessage, visibleTo, type } = message;
 
   // Handle system messages differently
   if (isSystemMessage) {
-    // If message has visibleTo field and it's not for current user, don't render
     if (visibleTo && visibleTo !== currentUserUID) {
       return null;
     }
-
     let systemMessageClass = "system-message";
-
-    // Add specific classes for different types of system messages
-    if (text.includes("connected with")) {
+    if (type === "connection") {
       systemMessageClass += " connection";
-    } else if (text.includes("has left the chat")) {
+    } else if (type === "disconnection") {
       systemMessageClass += " disconnection";
     }
-
     return (
       <div className={systemMessageClass}>
         <p>{text}</p>
@@ -1525,21 +1583,11 @@ const ChatMessage = ({ message, currentUserUID }) => {
 
   const messageClass = uid === currentUserUID ? "sent" : "received";
   return (
+    // The container now holds the bubble directly
     <div className={`message-container ${messageClass}`}>
-      <div className="message-inner">
-        <img
-          src={
-            photoURL ||
-            `https://placehold.co/40x40/8b5cf6/ffffff?text=${
-              displayName?.[0] || "U"
-            }`
-          }
-          alt="User Avatar"
-        />
-        <div className={`message-bubble ${messageClass}`}>
-          <p className="display-name">{displayName || "Anonymous"}</p>
-          <p>{text}</p>
-        </div>
+      <div className={`message-bubble ${messageClass}`}>
+        <p className="display-name">{displayName || "Anonymous"}</p>
+        <p>{text}</p>
       </div>
     </div>
   );
@@ -1552,10 +1600,50 @@ const MessageInput = ({
   onShowAnnouncementModal,
 }) => {
   const [formValue, setFormValue] = useState("");
+  const typingTimeoutRef = useRef(null);
+
+  // Effect to handle typing status
+  useEffect(() => {
+    if (!userProfile || !chatId) return;
+
+    const userRef = doc(db, "users", userProfile.uid);
+
+    // Clear previous timeout if user keeps typing
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    if (formValue) {
+      // User is typing, update status immediately
+      updateDoc(userRef, { isTyping: true, typingInChat: chatId });
+
+      // Set a timeout to mark user as not typing after they stop
+      typingTimeoutRef.current = setTimeout(() => {
+        updateDoc(userRef, { isTyping: false, typingInChat: null });
+      }, 2000); // 2-second delay
+    } else {
+      // Input is empty, mark as not typing
+      updateDoc(userRef, { isTyping: false, typingInChat: null });
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [formValue, userProfile, chatId]);
+
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!formValue.trim() || !chatId) return;
     const { uid, photoURL, displayName } = userProfile;
+
+    // Clear the typing indicator immediately on send
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    const userRef = doc(db, "users", userProfile.uid);
+    updateDoc(userRef, { isTyping: false, typingInChat: null });
+
     const messagesRef = collection(db, "chats", chatId, "messages");
     await addDoc(messagesRef, {
       text: formValue,
@@ -1572,7 +1660,7 @@ const MessageInput = ({
         type="button"
         onClick={onEndChat}
         className="end-chat-button"
-        title="End Chat"
+        title="Ghost Mode 👻"
       >
         <svg
           width="20"
@@ -1593,14 +1681,14 @@ const MessageInput = ({
         type="button"
         onClick={onShowAnnouncementModal}
         className="announcement-button"
-        title="Create Paid Announcement"
+        title="Make an announcement!"
       >
         📢
       </button>
       <input
         value={formValue}
         onChange={(e) => setFormValue(e.target.value)}
-        placeholder="Say something that matters... ✨"
+        placeholder="Ano'ng chika? Spill the tea... 👀"
       />
       <button
         type="submit"
@@ -1656,6 +1744,7 @@ const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
 );
 
 // Theme Toggle Component
+// Theme Toggle Component
 const ThemeToggle = ({ theme, toggleTheme }) => (
   <button
     className="theme-toggle"
@@ -1667,13 +1756,83 @@ const ThemeToggle = ({ theme, toggleTheme }) => (
         width="20"
         height="20"
         viewBox="0 0 24 24"
-        fill="currentColor"
+        stroke="currentColor"
+        fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <g>
-          <circle cx="12" cy="12" r="5" />
-          <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-        </g>
+        <circle cx="12" cy="12" r="4" fill="currentColor" />
+        <line
+          x1="12"
+          y1="2"
+          x2="12"
+          y2="4"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <line
+          x1="12"
+          y1="20"
+          x2="12"
+          y2="22"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <line
+          x1="4.93"
+          y1="4.93"
+          x2="6.34"
+          y2="6.34"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <line
+          x1="17.66"
+          y1="17.66"
+          x2="19.07"
+          y2="19.07"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <line
+          x1="2"
+          y1="12"
+          x2="4"
+          y2="12"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <line
+          x1="20"
+          y1="12"
+          x2="22"
+          y2="12"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <line
+          x1="4.93"
+          y1="19.07"
+          x2="6.34"
+          y2="17.66"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <line
+          x1="17.66"
+          y1="6.34"
+          x2="19.07"
+          y2="4.93"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
       </svg>
     ) : (
       <svg
@@ -1692,11 +1851,12 @@ const ThemeToggle = ({ theme, toggleTheme }) => (
 // Chat Ended Actions Component
 const ChatEndedActions = ({ onNextStranger, onBackHome }) => (
   <div className="chat-ended-actions">
+    {/* Updated Text Below */}
     <button onClick={onNextStranger} className="next-stranger-button">
-      Find Another Soul ✨
+      Find New Plot Twist ✨
     </button>
     <button onClick={onBackHome} className="back-home-button">
-      Back to Reality 💫
+      End of an Era 🥲
     </button>
   </div>
 );
@@ -1738,7 +1898,6 @@ const AnnouncementBanner = ({ announcement }) => {
   return (
     <div className="announcement-banner">
       <div className="announcement-content">
-        <span className="announcement-icon">📢</span>
         <span className="announcement-text">{announcement.message}</span>
         <span className="announcement-timer">{timeLeft}</span>
       </div>
@@ -1759,7 +1918,6 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
 
   const handleSubmit = async () => {
     try {
-      // Add to announcements collection for admin review
       await addDoc(collection(db, "announcement_requests"), {
         message: message.trim(),
         status: "pending",
@@ -1777,7 +1935,7 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
     <div className="announcement-modal-overlay">
       <div className="announcement-modal">
         <div className="announcement-modal-header">
-          <h3>Create Your Billboard ✨</h3>
+          <h3>Go Viral on UsapTayo 📢</h3>
           <button onClick={onClose} className="close-button">
             ×
           </button>
@@ -1785,69 +1943,75 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
 
         {step === 1 && (
           <div className="announcement-modal-content">
-            <p>Share your vibe with everyone on UsapTayo! 💫</p>
+            <p className="modal-subtitle">
+              Got something to say? Shout it out sa lahat! Perfect for finding
+              your ka-vibe or just for funsies. 🚀
+            </p>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="What do you want to tell the world? ✨"
+              placeholder="Spill the tea... what's the announcement? 👀"
               maxLength={200}
               rows={4}
             />
             <div className="char-count">{message.length}/200</div>
             <div className="announcement-pricing">
               <p>
-                📍 Your message will be pinned for <strong>10 minutes</strong>
+                💅 Your message gets the spotlight for{" "}
+                <strong>10 minutes</strong>
               </p>
               <p>
-                💰 Price: <strong>₱10.00</strong>
+                💸 Damage: <strong>₱10.00 lang, beh.</strong>
               </p>
             </div>
             <button
               onClick={handleNext}
               disabled={message.trim().length === 0}
-              className="next-button"
+              className="modal-button primary"
             >
-              Next: Payment 💳
+              Secure the Bag 💳
             </button>
           </div>
         )}
 
         {step === 2 && (
           <div className="announcement-modal-content">
-            <h4>Payment Details 💳</h4>
+            <h4 className="modal-subtitle">
+              Almost there! Settle the bill, bestie. 💅
+            </h4>
             <div className="payment-info">
               <div className="payment-method">
                 <h5>GCash 📱</h5>
                 <p className="payment-number">09615814316</p>
-                <p className="payment-name">Oliver Revelo</p>
+                <p className="payment-name">Oliver R.</p>
               </div>
               <div className="payment-method">
                 <h5>Maya 💙</h5>
                 <p className="payment-number">09615814316</p>
-                <p className="payment-name">Oliver Revelo</p>
+                <p className="payment-name">Oliver R.</p>
               </div>
             </div>
             <div className="payment-instructions">
               <p>
-                <strong>Instructions:</strong>
+                <strong>The How-To:</strong>
               </p>
               <ol>
-                <li>Send exactly ₱10.00 to any of the numbers above</li>
-                <li>Take a screenshot of your payment confirmation</li>
-                <li>Send the screenshot to our admin for verification</li>
-                <li>Your announcement will go live within 5 minutes! ⚡</li>
+                <li>Send exactly <strong>₱10.00</strong> to any number above.</li>
+                <li>Screenshot the receipt.</li>
+                <li>DM the screenshot to our admin for verification.</li>
+                <li>Your billboard goes live in 5 mins! ⚡</li>
               </ol>
             </div>
             <div className="announcement-preview">
-              <h5>Your Message Preview:</h5>
+              <h5>Vibe Check: Your Billboard Preview ✨</h5>
               <div className="preview-banner">📢 {message}</div>
             </div>
-            <div className="modal-buttons">
-              <button onClick={() => setStep(1)} className="back-button">
-                Back
+            <div className="modal-button-group">
+              <button onClick={() => setStep(1)} className="modal-button back">
+                Wait, go back
               </button>
-              <button onClick={handleSubmit} className="submit-button">
-                Submit Request
+              <button onClick={handleSubmit} className="modal-button submit">
+                Confirm & Send Request 🚀
               </button>
             </div>
           </div>
@@ -1858,6 +2022,7 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
 };
 
 // Admin Panel Component
+// Replace the ENTIRE AdminPanel component in App.js with this:
 const AdminPanel = ({ onApprove, onReject, onLogout }) => {
   const [requests, setRequests] = useState([]);
 
@@ -1900,64 +2065,72 @@ const AdminPanel = ({ onApprove, onReject, onLogout }) => {
   return (
     <div className="admin-panel">
       <div className="admin-header">
-        <h2>Admin Panel - Announcement Requests</h2>
+        <h2>Admin Panel</h2>
+      </div>
+
+      {/* This container is ESSENTIAL for the flexbox layout to work */}
+      <div className="admin-content-container">
+        <div className="admin-content">
+          <h3>Pending Requests ({requests.length})</h3>
+          {requests.length === 0 && (
+            <div className="no-requests">
+              <p>No pending announcement requests ✨</p>
+              <p>All caught up! 🎉</p>
+            </div>
+          )}
+          {requests.map((request) => (
+            <div key={request.id} className="request-card">
+              <div className="request-header">
+                <span className="request-time">
+                  📅 {formatDate(request.createdAt)}
+                </span>
+                <span className="request-price">
+                  💰 ₱{request.paymentAmount || 10}.00
+                </span>
+              </div>
+              <p className="request-message">"{request.message}"</p>
+              <div className="request-details">
+                <span>Duration: {request.duration || 10} minutes</span>
+                <span>Status: {request.status}</span>
+              </div>
+              <div className="request-actions">
+                <button
+                  onClick={() => {
+                    const confirmed = window.confirm(
+                      `Approve this announcement?\n\nMessage: "${
+                        request.message
+                      }"\n\nMake sure payment of ₱${
+                        request.paymentAmount || 10
+                      } has been received before approving.`
+                    );
+                    if (confirmed) {
+                      onApprove(request.id, request);
+                    }
+                  }}
+                  className="approve-button"
+                >
+                  ✅ Approve & Publish
+                </button>
+                <button
+                  onClick={() => {
+                    const reason = prompt("Rejection reason (will be logged):");
+                    if (reason) onReject(request.id, reason);
+                  }}
+                  className="reject-button"
+                >
+                  ❌ Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* This footer wrapper is also ESSENTIAL for the layout */}
+      <div className="admin-footer">
         <button onClick={onLogout} className="logout-button">
           Logout
         </button>
-      </div>
-      <div className="admin-content">
-        <h3>Pending Requests ({requests.length})</h3>
-        {requests.length === 0 && (
-          <div className="no-requests">
-            <p>No pending announcement requests ✨</p>
-            <p>All caught up! 🎉</p>
-          </div>
-        )}
-        {requests.map((request) => (
-          <div key={request.id} className="request-card">
-            <div className="request-header">
-              <span className="request-time">
-                📅 {formatDate(request.createdAt)}
-              </span>
-              <span className="request-price">
-                💰 ₱{request.paymentAmount || 10}.00
-              </span>
-            </div>
-            <p className="request-message">"{request.message}"</p>
-            <div className="request-details">
-              <span>Duration: {request.duration || 10} minutes</span>
-              <span>Status: {request.status}</span>
-            </div>
-            <div className="request-actions">
-              <button
-                onClick={() => {
-                  const confirmed = window.confirm(
-                    `Approve this announcement?\n\nMessage: "${
-                      request.message
-                    }"\n\nMake sure payment of ₱${
-                      request.paymentAmount || 10
-                    } has been received before approving.`
-                  );
-                  if (confirmed) {
-                    onApprove(request.id, request);
-                  }
-                }}
-                className="approve-button"
-              >
-                ✅ Approve & Publish
-              </button>
-              <button
-                onClick={() => {
-                  const reason = prompt("Rejection reason (will be logged):");
-                  if (reason) onReject(request.id, reason);
-                }}
-                className="reject-button"
-              >
-                ❌ Reject
-              </button>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
