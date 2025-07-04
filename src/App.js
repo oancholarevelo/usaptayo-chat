@@ -184,7 +184,7 @@ export default function App() {
         setAnnouncementModal({ show: false });
     };
 
-    // Check for active announcements on app load
+    // Check for active announcements on app load - IMPROVED EXPIRATION HANDLING
     useEffect(() => {
         const checkActiveAnnouncement = async () => {
             try {
@@ -195,10 +195,40 @@ export default function App() {
                     orderBy('createdAt', 'desc'),
                     limit(1)
                 );
-                const unsubscribe = onSnapshot(q, (querySnapshot) => {
+                const unsubscribe = onSnapshot(q, async (querySnapshot) => {
                     if (!querySnapshot.empty) {
                         const announcement = querySnapshot.docs[0].data();
-                        setActiveAnnouncement(announcement);
+                        const announcementId = querySnapshot.docs[0].id;
+                        
+                        // Real-time expiration check
+                        const now = new Date();
+                        const expiresAt = announcement.expiresAt.toDate();
+                        
+                        if (expiresAt <= now) {
+                            // Immediately remove expired announcement from UI
+                            setActiveAnnouncement(null);
+                            
+                            // Mark as expired in database
+                            try {
+                                await updateDoc(doc(db, 'announcements', announcementId), {
+                                    status: 'expired',
+                                    expiredAt: serverTimestamp()
+                                });
+                            } catch (error) {
+                                console.error("Error marking announcement as expired:", error);
+                            }
+                        } else {
+                            // Set up real-time expiration timer
+                            const timeUntilExpiry = expiresAt - now;
+                            setTimeout(() => {
+                                setActiveAnnouncement(null);
+                            }, timeUntilExpiry);
+                            
+                            setActiveAnnouncement({
+                                ...announcement,
+                                id: announcementId
+                            });
+                        }
                     } else {
                         setActiveAnnouncement(null);
                     }
@@ -496,59 +526,91 @@ export default function App() {
         setAppState('matchmaking');
     };
 
-    // Effect for handling tab visibility and cleanup
+    // Effect for handling tab visibility and cleanup - IMPROVED TO PREVENT DISCONNECTIONS
     useEffect(() => {
+        let cleanupTimeout;
+        
         const handleVisibilityChange = async () => {
             if (document.visibilityState === 'hidden' && user && userProfile) {
-                // Clean up when tab becomes hidden (works better on mobile)
-                try {
-                    const userRef = doc(db, 'users', user.uid);
-                    await setDoc(userRef, {}, { merge: false });
-                } catch (error) {
-                    console.error("Error cleaning up on visibility change:", error);
+                // Only set cleanup timer if user is not in active chat
+                if (appState !== 'chatting' && appState !== 'chat_ended') {
+                    // Much longer delay and more conditions to prevent accidental disconnections
+                    cleanupTimeout = setTimeout(async () => {
+                        // Triple check conditions before cleanup
+                        if (document.visibilityState === 'hidden' && 
+                            appState !== 'chatting' && 
+                            appState !== 'chat_ended' &&
+                            user && userProfile) {
+                            try {
+                                const userRef = doc(db, 'users', user.uid);
+                                // Only clear waiting/matchmaking states, preserve chat states
+                                if (appState === 'waiting' || appState === 'matchmaking') {
+                                    await setDoc(userRef, { status: 'matchmaking' }, { merge: true });
+                                }
+                            } catch (error) {
+                                console.error("Error cleaning up on visibility change:", error);
+                            }
+                        }
+                    }, 300000); // Wait 5 minutes instead of 1 minute for better UX
+                }
+            } else if (document.visibilityState === 'visible') {
+                // Cancel cleanup when user returns
+                if (cleanupTimeout) {
+                    clearTimeout(cleanupTimeout);
+                    cleanupTimeout = null;
                 }
             }
         };
 
         const handleBeforeUnload = async (event) => {
+            // Only clean up when actually closing/navigating away
             if (user && userProfile) {
-                // Try to clean up user profile when tab is closed
                 try {
                     const userRef = doc(db, 'users', user.uid);
-                    await setDoc(userRef, {}, { merge: false });
+                    // More gentle cleanup - just reset status instead of clearing everything
+                    await setDoc(userRef, { status: 'homepage', currentChatId: null }, { merge: true });
                 } catch (error) {
                     console.error("Error cleaning up on tab close:", error);
                 }
             }
         };
 
-        // Add multiple event listeners for better mobile support
+        // Add event listeners
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('pagehide', handleBeforeUnload);
         
         return () => {
+            // Clear timeout on cleanup
+            if (cleanupTimeout) {
+                clearTimeout(cleanupTimeout);
+            }
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
             window.removeEventListener('pagehide', handleBeforeUnload);
         };
-    }, [user, userProfile]);
+    }, [user, userProfile, appState]);
 
-    // Effect to handle cleanup when user disconnects while waiting
+    // Effect to handle cleanup when user disconnects while waiting - IMPROVED
     useEffect(() => {
         let cleanupTimer;
         
         if (appState === 'waiting' && user) {
-            // Set a timeout to clean up if user stays in waiting too long
+            // Longer timeout and better handling for waiting users
             cleanupTimer = setTimeout(async () => {
                 try {
                     const userRef = doc(db, 'users', user.uid);
-                    await setDoc(userRef, { status: 'matchmaking' }, { merge: true });
-                    setAppState('matchmaking');
+                    // Check if user is still in waiting state before cleanup
+                    const userDoc = await getDoc(userRef);
+                    if (userDoc.exists() && userDoc.data().status === 'waiting') {
+                        await setDoc(userRef, { status: 'matchmaking' }, { merge: true });
+                        setAppState('matchmaking');
+                        showNotification('Matchmaking timeout - please try again! ✨', 'info');
+                    }
                 } catch (error) {
                     console.error("Cleanup failed:", error);
                 }
-            }, 30000); // 30 seconds timeout
+            }, 120000); // 2 minutes timeout instead of 30 seconds for better UX
         }
         
         return () => {
@@ -557,6 +619,32 @@ export default function App() {
             }
         };
     }, [appState, user]);
+
+    // Heartbeat system to keep user connection alive and prevent disconnections
+    useEffect(() => {
+        let heartbeatInterval;
+        
+        if (user && userProfile && (appState === 'chatting' || appState === 'waiting')) {
+            // Send heartbeat every 30 seconds to keep connection alive
+            heartbeatInterval = setInterval(async () => {
+                try {
+                    const userRef = doc(db, 'users', user.uid);
+                    await setDoc(userRef, { 
+                        lastHeartbeat: serverTimestamp(),
+                        status: appState // Refresh current status
+                    }, { merge: true });
+                } catch (error) {
+                    console.error("Heartbeat failed:", error);
+                }
+            }, 30000); // 30 seconds
+        }
+        
+        return () => {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+            }
+        };
+    }, [user, userProfile, appState]);
 
     switch (appState) {
         case 'loading':
@@ -996,11 +1084,14 @@ const ChatEndedActions = ({ onNextStranger, onBackHome }) => (
     </div>
 );
 
-// Announcement Banner Component
+// Announcement Banner Component - IMPROVED EXPIRATION HANDLING
 const AnnouncementBanner = ({ announcement }) => {
     const [timeLeft, setTimeLeft] = useState('');
+    const [isExpired, setIsExpired] = useState(false);
 
     useEffect(() => {
+        if (!announcement || !announcement.expiresAt) return;
+        
         const updateTimeLeft = () => {
             const now = new Date();
             const expiresAt = announcement.expiresAt.toDate();
@@ -1010,8 +1101,10 @@ const AnnouncementBanner = ({ announcement }) => {
                 const minutes = Math.floor(timeDiff / (1000 * 60));
                 const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
                 setTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+                setIsExpired(false);
             } else {
                 setTimeLeft('Expired');
+                setIsExpired(true);
             }
         };
 
@@ -1019,6 +1112,11 @@ const AnnouncementBanner = ({ announcement }) => {
         const interval = setInterval(updateTimeLeft, 1000);
         return () => clearInterval(interval);
     }, [announcement]);
+
+    // Don't render if expired or no announcement
+    if (isExpired || !announcement) {
+        return null;
+    }
 
     return (
         <div className="announcement-banner">
