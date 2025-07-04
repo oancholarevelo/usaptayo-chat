@@ -664,7 +664,6 @@ export default function App() {
 
         await Promise.all([
           addDoc(messagesRef, myMessage),
-          // FIX: The typo 'messages_ref' is now corrected to 'messagesRef'
           addDoc(messagesRef, partnerMessage),
         ]);
         console.log("Connection messages added successfully.");
@@ -679,6 +678,7 @@ export default function App() {
       await setDoc(userRef, { status: "matchmaking" }, { merge: true });
     }
   };
+  
   const endChat = async () => {
     if (!user || !chatId) return;
 
