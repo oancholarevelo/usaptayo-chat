@@ -232,13 +232,26 @@ export default function App() {
             // If we successfully matched, add the connection message
             if (result) {
                 const messagesRef = collection(db, 'chats', result.chatId, 'messages');
+                
+                // Add personalized connection messages for each user
                 await addDoc(messagesRef, {
-                    text: `${userProfile.displayName} connected with ${result.partner.displayName}`,
+                    text: `You connected with ${result.partner.displayName}`,
                     createdAt: serverTimestamp(),
                     uid: 'system',
                     photoURL: '',
                     displayName: 'System',
-                    isSystemMessage: true
+                    isSystemMessage: true,
+                    visibleTo: user.uid // Only visible to the current user
+                });
+                
+                await addDoc(messagesRef, {
+                    text: `${userProfile.displayName} connected with you`,
+                    createdAt: serverTimestamp(),
+                    uid: 'system',
+                    photoURL: '',
+                    displayName: 'System',
+                    isSystemMessage: true,
+                    visibleTo: result.partner.uid // Only visible to the partner
                 });
             }
 
@@ -602,6 +615,7 @@ const Header = ({ onEndChat, chatEnded }) => (
 const ChatRoom = ({ userProfile, chatId }) => {
     const [messages, setMessages] = useState([]);
     const dummy = useRef();
+    const chatRoomRef = useRef();
 
     useEffect(() => {
         if (!chatId) return;
@@ -615,11 +629,24 @@ const ChatRoom = ({ userProfile, chatId }) => {
     }, [chatId]);
 
     useEffect(() => {
-        dummy.current?.scrollIntoView({ behavior: 'smooth' });
+        // Smooth scroll to bottom with a slight delay to ensure content is rendered
+        const scrollToBottom = () => {
+            if (dummy.current) {
+                dummy.current.scrollIntoView({ 
+                    behavior: 'smooth',
+                    block: 'end'
+                });
+            }
+        };
+        
+        // Use setTimeout to ensure the DOM is updated
+        const timeoutId = setTimeout(scrollToBottom, 100);
+        
+        return () => clearTimeout(timeoutId);
     }, [messages]);
 
     return (
-        <main className="chat-room">
+        <main className="chat-room" ref={chatRoomRef}>
             {messages.map(msg => <ChatMessage key={msg.id} message={msg} currentUserUID={userProfile.uid} />)}
             <div ref={dummy} className="dummy-div"></div>
         </main>
@@ -627,10 +654,15 @@ const ChatRoom = ({ userProfile, chatId }) => {
 };
 
 const ChatMessage = ({ message, currentUserUID }) => {
-    const { text, uid, photoURL, displayName, isSystemMessage } = message;
+    const { text, uid, photoURL, displayName, isSystemMessage, visibleTo } = message;
     
     // Handle system messages differently
     if (isSystemMessage) {
+        // If message has visibleTo field and it's not for current user, don't render
+        if (visibleTo && visibleTo !== currentUserUID) {
+            return null;
+        }
+        
         let systemMessageClass = 'system-message';
         
         // Add specific classes for different types of system messages
