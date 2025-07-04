@@ -106,12 +106,12 @@ export default function App() {
   };
 
   const showPollModal = () => {
-  setPollModal({ show: true });
-};
+    setPollModal({ show: true });
+  };
 
-const hidePollModal = () => {
-  setPollModal({ show: false });
-};
+  const hidePollModal = () => {
+    setPollModal({ show: false });
+  };
 
   // Secret access methods for admin (works on both desktop and mobile)
   const [tapCount, setTapCount] = useState(0);
@@ -1171,12 +1171,9 @@ const hidePollModal = () => {
             />
           )}
           {/* Render the modal */}
-      {pollModal.show && (
-        <PollModal
-          onClose={hidePollModal}
-          chatId={chatId}
-        />
-      )}
+          {pollModal.show && (
+            <PollModal onClose={hidePollModal} chatId={chatId} />
+          )}
           <Analytics />
         </>
       );
@@ -1311,23 +1308,47 @@ const Homepage = ({ onAccept, onSecretTap }) => {
           UsapTayo: Find Your 'Lowkey' ✨
         </h1>
         <p>
-          Your main character era starts here. Dito, you can find your "ka-talking stage" or ka-situationship nang lowkey lang. It's giving 'Every Summertime' vibes—no strings, just pure, authentic energy. Baka dito mo na mahanap 'yung ka-vibe mo. 💫
+          Your main character era starts here. Dito, you can find your
+          "ka-talking stage" or ka-situationship nang lowkey lang. It's giving
+          'Every Summertime' vibes—no strings, just pure, authentic energy. Baka
+          dito mo na mahanap 'yung ka-vibe mo. 💫
         </p>
 
         <h2>The Vibe Check 📱</h2>
         <p>Para iwas-gulo at para good vibes lang tayong lahat:</p>
         <ul>
-          <li><strong>18+ Only:</strong> Para legal ang feelings at usapan. 😉</li>
-          <li><strong>Be a Vibe:</strong> Don't kill the vibe. Bawal ang toxic dito. 💅</li>
-          <li><strong>Keep it Mystery:</strong> No real names or socials muna. The plot twist is part of the fun! ✨</li>
-          <li><strong>SFW Only:</strong> Keep it classy. Don't send anything you wouldn't want your lola to see.</li>
-          <li><strong>No to Budol:</strong> We're here for connections, not transactions. Bawal mag-solicit or mag-spam.</li>
-          <li><strong>'Wag Kang Maging Marupok:</strong> But if someone gives you the ick, use the report button. We gotchu! 🛡️</li>
+          <li>
+            <strong>18+ Only:</strong> Para legal ang feelings at usapan. 😉
+          </li>
+          <li>
+            <strong>Be a Vibe:</strong> Don't kill the vibe. Bawal ang toxic
+            dito. 💅
+          </li>
+          <li>
+            <strong>Keep it Mystery:</strong> No real names or socials muna. The
+            plot twist is part of the fun! ✨
+          </li>
+          <li>
+            <strong>SFW Only:</strong> Keep it classy. Don't send anything you
+            wouldn't want your lola to see.
+          </li>
+          <li>
+            <strong>No to Budol:</strong> We're here for connections, not
+            transactions. Bawal mag-solicit or mag-spam.
+          </li>
+          <li>
+            <strong>'Wag Kang Maging Marupok:</strong> But if someone gives you
+            the ick, use the report button. We gotchu! 🛡️
+          </li>
         </ul>
 
         <h2>Your Secret is Safe 🤫</h2>
         <p>
-          Plot twist: everything here disappears. Ghosting is a feature, not a bug. 👻 Your chats are temporary, your identity is a mystery. We don't keep receipts, so you can be your true self without the digital footprint. Tandaan: stranger danger is real, so keep your personal deets to yourself!
+          Plot twist: everything here disappears. Ghosting is a feature, not a
+          bug. 👻 Your chats are temporary, your identity is a mystery. We don't
+          keep receipts, so you can be your true self without the digital
+          footprint. Tandaan: stranger danger is real, so keep your personal
+          deets to yourself!
         </p>
 
         <form onSubmit={handleSubmit} className="homepage-form">
@@ -1376,7 +1397,9 @@ const LoadingScreen = ({ text, onSecretTap }) => (
       </div>
       {/* Updated Text Below */}
       {text === "Loading..." && <p>Prepping the vibes... ✨</p>}
-      {text === "Manifesting your person... 💫✨" && <p>Manifesting your ka-usap... 💫✨</p>}
+      {text === "Manifesting your person... 💫✨" && (
+        <p>Manifesting your ka-usap... 💫✨</p>
+      )}
     </div>
   </div>
 );
@@ -1569,7 +1592,8 @@ const ChatRoom = ({ userProfile, chatId }) => {
       {messages.map((msg) => (
         <ChatMessage
           key={msg.id}
-          message={{...msg, chatId: chatId}}
+          // This line is crucial: it passes all message data, including the new chatId
+          message={{ ...msg, chatId: chatId }}
           currentUserUID={userProfile.uid}
         />
       ))}
@@ -1580,12 +1604,32 @@ const ChatRoom = ({ userProfile, chatId }) => {
 };
 
 const ChatMessage = ({ message, currentUserUID }) => {
-  const { text, uid, displayName, isSystemMessage, visibleTo, type, pollData } = message;
+  const {
+    text,
+    uid,
+    displayName,
+    isSystemMessage,
+    visibleTo,
+    type,
+    pollData,
+    id: messageId, // Use message.id as messageId
+    chatId,
+    reactions, // Get reactions from the message object
+  } = message;
 
-  // Handle system messages differently
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const availableReactions = ["👍", "❤️", "😆", "😮", "☹️", "🥹"];
+
+  // Handle system messages (no changes needed here)
   if (isSystemMessage) {
-    if (type === 'poll' && pollData) {
-      return <VibeCheckPoll message={message} chatId={message.chatId} currentUserUID={currentUserUID} />;
+    if (type === "poll" && pollData) {
+      return (
+        <VibeCheckPoll
+          message={message}
+          chatId={chatId}
+          currentUserUID={currentUserUID}
+        />
+      );
     }
 
     if (visibleTo && visibleTo !== currentUserUID) {
@@ -1604,13 +1648,89 @@ const ChatMessage = ({ message, currentUserUID }) => {
     );
   }
 
+  const handleReaction = async (emoji) => {
+    const messageRef = doc(db, "chats", chatId, "messages", messageId);
+
+    await runTransaction(db, async (transaction) => {
+      const messageDoc = await transaction.get(messageRef);
+      if (!messageDoc.exists()) {
+        throw new Error("Message does not exist!");
+      }
+
+      const data = messageDoc.data();
+      const currentReactions = data.reactions || {};
+      let userHasReactedWithEmoji = false;
+
+      // Check if user has already reacted with this emoji
+      if (
+        currentReactions[emoji] &&
+        currentReactions[emoji].includes(currentUserUID)
+      ) {
+        userHasReactedWithEmoji = true;
+      }
+
+      // Remove any previous reaction from the user
+      for (const key in currentReactions) {
+        currentReactions[key] = currentReactions[key].filter(
+          (reactorId) => reactorId !== currentUserUID
+        );
+        // Clean up empty reaction arrays
+        if (currentReactions[key].length === 0) {
+          delete currentReactions[key];
+        }
+      }
+
+      // If the user hadn't reacted with this emoji, add the new reaction
+      if (!userHasReactedWithEmoji) {
+        if (!currentReactions[emoji]) {
+          currentReactions[emoji] = [];
+        }
+        currentReactions[emoji].push(currentUserUID);
+      }
+
+      transaction.update(messageRef, { reactions: currentReactions });
+    });
+    setShowEmojiPicker(false); // Close picker after reacting
+  };
+
   const messageClass = uid === currentUserUID ? "sent" : "received";
+
   return (
-    // The container now holds the bubble directly
     <div className={`message-container ${messageClass}`}>
       <div className={`message-bubble ${messageClass}`}>
         <p className="display-name">{displayName || "Anonymous"}</p>
         <p>{text}</p>
+
+        {/* --- Reaction UI Elements --- */}
+        <button
+          className="reaction-button"
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        >
+          😊
+        </button>
+
+        {showEmojiPicker && (
+          <div className="emoji-picker-popup">
+            {availableReactions.map((emoji) => (
+              <span key={emoji} onClick={() => handleReaction(emoji)}>
+                {emoji}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {reactions && Object.keys(reactions).length > 0 && (
+          <div className="reactions-display">
+            {Object.entries(reactions).map(([emoji, uids]) =>
+              uids.length > 0 ? (
+                <div key={emoji} className="reaction-chip">
+                  <span>{emoji}</span>
+                  <span>{uids.length}</span>
+                </div>
+              ) : null
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1883,7 +2003,6 @@ const ThemeToggle = ({ theme, toggleTheme }) => (
 // Chat Ended Actions Component
 const ChatEndedActions = ({ onNextStranger, onBackHome }) => (
   <div className="chat-ended-actions">
-    {/* Updated Text Below */}
     <button onClick={onNextStranger} className="next-stranger-button">
       Find New Plot Twist ✨
     </button>
@@ -1993,7 +2112,7 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
                 <strong>10 minutes</strong>
               </p>
               <p>
-                💸 Damage: <strong>₱10.00 lang, beh.</strong>
+                💸 Damage: <strong>₱15.00 lang, beh.</strong>
               </p>
             </div>
             <button
@@ -2028,7 +2147,9 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
                 <strong>The How-To:</strong>
               </p>
               <ol>
-                <li>Send exactly <strong>₱10.00</strong> to any number above.</li>
+                <li>
+                  Send exactly <strong>₱10.00</strong> to any number above.
+                </li>
                 <li>Screenshot the receipt.</li>
                 <li>DM the screenshot to our admin for verification.</li>
                 <li>Your billboard goes live in 5 mins! ⚡</li>
@@ -2077,7 +2198,9 @@ const VibeCheckPoll = ({ message, chatId, currentUserUID }) => {
       // Add the new voter if they haven't voted for this option
       if (!optionVotes.includes(currentUserUID)) {
         const newOptionVotes = [...optionVotes, currentUserUID];
-        transaction.update(pollRef, { [`pollData.${voteKey}`]: newOptionVotes });
+        transaction.update(pollRef, {
+          [`pollData.${voteKey}`]: newOptionVotes,
+        });
       }
     });
 
@@ -2095,7 +2218,8 @@ const VibeCheckPoll = ({ message, chatId, currentUserUID }) => {
         {pollData.options.map((option) => {
           const optionVotes = pollData.votes?.[option.id] || [];
           const voteCount = optionVotes.length;
-          const votePercentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
+          const votePercentage =
+            totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
 
           return (
             <button
@@ -2120,13 +2244,40 @@ const VibeCheckPoll = ({ message, chatId, currentUserUID }) => {
   );
 };
 
-
 const PollModal = ({ onClose, chatId }) => {
   const pollQuestions = [
-    { id: 'q1', question: 'Vibe for tonight?', options: [{ id: 'o1', text: 'Stay in & chill' }, { id: 'o2', text: 'Go out & party' }] },
-    { id: 'q2', question: 'Ideal first date?', options: [{ id: 'o1', text: 'Coffee shop' }, { id: 'o2', text: 'Dinner & a movie' }] },
-    { id: 'q3', question: 'Music preference?', options: [{ id: 'o1', text: 'OPM' }, { id: 'o2', text: 'International Hits' }] },
-    { id: 'q4', question: 'Dogs or Cats?', options: [{ id: 'o1', text: 'Dogs 🐶' }, { id: 'o2', text: 'Cats 🐱' }] },
+    {
+      id: "q1",
+      question: "Vibe for tonight?",
+      options: [
+        { id: "o1", text: "Stay in & chill" },
+        { id: "o2", text: "Go out & party" },
+      ],
+    },
+    {
+      id: "q2",
+      question: "Ideal first date?",
+      options: [
+        { id: "o1", text: "Coffee shop" },
+        { id: "o2", text: "Dinner & a movie" },
+      ],
+    },
+    {
+      id: "q3",
+      question: "Music preference?",
+      options: [
+        { id: "o1", text: "OPM" },
+        { id: "o2", text: "International Hits" },
+      ],
+    },
+    {
+      id: "q4",
+      question: "Dogs or Cats?",
+      options: [
+        { id: "o1", text: "Dogs 🐶" },
+        { id: "o2", text: "Cats 🐱" },
+      ],
+    },
   ];
 
   const handleSendPoll = async (poll) => {
@@ -2134,10 +2285,10 @@ const PollModal = ({ onClose, chatId }) => {
     await addDoc(messagesRef, {
       text: `Vibe Check: ${poll.question}`,
       createdAt: serverTimestamp(),
-      uid: 'system',
-      displayName: 'System',
+      uid: "system",
+      displayName: "System",
       isSystemMessage: true,
-      type: 'poll',
+      type: "poll",
       pollData: {
         question: poll.question,
         options: poll.options,
@@ -2152,7 +2303,9 @@ const PollModal = ({ onClose, chatId }) => {
       <div className="poll-modal">
         <div className="poll-modal-header">
           <h3>Vibe Check ✨</h3>
-          <button onClick={onClose} className="close-button">×</button>
+          <button onClick={onClose} className="close-button">
+            ×
+          </button>
         </div>
         <div className="poll-modal-content">
           <p>Ask your ka-talking stage a question to check the vibe.</p>

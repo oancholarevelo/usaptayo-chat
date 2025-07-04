@@ -368,10 +368,85 @@ body {
 }
 
 .message-bubble {
+  position: relative; /* Needed for positioning the reaction button */
   padding: 0.75rem 1rem;
-  border-radius: 1.25rem; /* Fully rounded corners */
+  border-radius: 1.25rem;
   word-wrap: break-word;
   color: var(--text-primary);
+}
+
+.reaction-button {
+  position: absolute;
+  top: -10px;
+  right: -5px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0; /* Hidden by default */
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 5;
+}
+
+.message-container:hover .reaction-button {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.message-bubble.sent .reaction-button {
+  right: auto;
+  left: -5px;
+}
+
+.emoji-picker-popup {
+  position: absolute;
+  bottom: 100%; /* Position above the button */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-secondary);
+  border-radius: 1rem;
+  padding: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-bottom: 0.5rem; /* Space between picker and bubble */
+  z-index: 6;
+}
+
+.emoji-picker-popup span {
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.emoji-picker-popup span:hover {
+  transform: scale(1.25);
+}
+
+.reactions-display {
+  position: absolute;
+  bottom: -12px;
+  right: 8px; /* Align with the bubble corner */
+  display: flex;
+  gap: 0.25rem;
+  z-index: 4;
+}
+
+.reaction-chip {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  gap: 0.25rem;
 }
 
 .message-bubble.sent {
@@ -546,6 +621,9 @@ body {
   transition: all 0.2s ease;
   flex: 1;
   max-width: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center; 
 }
 
 .next-stranger-button {
