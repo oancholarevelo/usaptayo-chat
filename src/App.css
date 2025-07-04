@@ -574,6 +574,10 @@ body {
   bottom: 0;
   z-index: 10;
   gap: 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
 }
 
 .end-chat-button {
@@ -627,6 +631,10 @@ body {
   box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
   min-width: 44px;
   min-height: 44px;
+  width: 44px;
+  height: 44px;
+  position: relative;
+  z-index: 10;
 }
 .message-form button.send-button:hover {
   background-color: var(--accent-hover);
@@ -758,7 +766,7 @@ body {
 .announcement-banner {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   color: white;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 1rem;
   text-align: center;
   position: relative;
   animation: slideDown 0.5s ease-out;
@@ -773,27 +781,31 @@ body {
   gap: 0.5rem;
   max-width: 800px;
   margin: 0 auto;
+  font-size: 0.9rem;
 }
 
 .announcement-icon {
-  font-size: 1.25rem;
+  font-size: 1rem;
   animation: pulse 2s infinite;
+  flex-shrink: 0;
 }
 
 .announcement-text {
   flex: 1;
   font-weight: 500;
   text-align: center;
+  line-height: 1.2;
 }
 
 .announcement-timer {
   background: rgba(255, 255, 255, 0.2);
-  padding: 0.25rem 0.5rem;
+  padding: 0.2rem 0.4rem;
   border-radius: 0.25rem;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  min-width: 3rem;
+  min-width: 2.5rem;
   text-align: center;
+  flex-shrink: 0;
 }
 
 @keyframes slideDown {
@@ -1186,11 +1198,13 @@ body {
     right: 0 !important;
     padding: 0.75rem 1rem !important;
     z-index: 1000 !important;
+    gap: 0.5rem !important;
   }
   
   .message-form input {
     height: auto !important;
     padding: 0.625rem 1rem !important;
+    flex: 1 !important;
   }
   
   .message-form button {
@@ -1198,7 +1212,27 @@ body {
     height: 40px !important;
     min-width: 40px !important;
     min-height: 40px !important;
+    max-width: 40px !important;
+    max-height: 40px !important;
     padding: 0.5rem !important;
+    flex-shrink: 0 !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    z-index: 10 !important;
+  }
+  
+  .message-form button.send-button {
+    background-color: var(--accent-primary) !important;
+    color: white !important;
+    border: 2px solid var(--accent-primary) !important;
+  }
+  
+  .message-form button svg {
+    width: 16px !important;
+    height: 16px !important;
   }
 }
 
@@ -1210,6 +1244,38 @@ body {
   
   .chat-room {
     padding-bottom: max(2rem, calc(env(safe-area-inset-bottom) + 1rem)) !important;
+  }
+}
+
+/* Android Device Specific Fixes */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .message-form button.send-button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    -webkit-transform: translateZ(0) !important;
+    transform: translateZ(0) !important;
+    -webkit-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
+    -webkit-tap-highlight-color: transparent !important;
+    will-change: transform !important;
+  }
+}
+
+/* Samsung Browser Specific Fixes */
+@media screen and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: .001dpcm) {
+  .message-form {
+    -webkit-transform: translateZ(0) !important;
+    transform: translateZ(0) !important;
+  }
+  
+  .message-form button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
   }
 }
 

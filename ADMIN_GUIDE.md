@@ -2,11 +2,18 @@
 
 ## Accessing Admin Panel
 
-The admin panel is completely hidden from regular users. To access it:
+The admin panel is completely hidden from regular users. You can access it using either method:
 
-1. **Secret Keyboard Shortcut**: Press `Ctrl + Shift + A` anywhere in the application
-2. **Enter Password**: When prompted, enter the secure admin password: `TP9K9p!g4Fq$M-F`
-3. **Admin Access**: You'll be taken to the admin dashboard with a success notification
+### Desktop Method:
+- **Keyboard Shortcut**: Press `Ctrl + Shift + A` anywhere in the application
+
+### Mobile/Touch Method:
+- **Secret Tap**: Tap the "UsapTayo" title **7 times quickly** (within 3 seconds) on any page
+- Works on homepage, loading screens, chat header, or any other page with the title
+
+### After Triggering Access:
+1. **Enter Password**: When prompted, enter the secure admin password: `TP9K9p!g4Fq$M-F`
+2. **Admin Access**: You'll be taken to the admin dashboard with a success notification
 
 ## Admin Features
 
@@ -18,8 +25,9 @@ The admin panel is completely hidden from regular users. To access it:
 
 ### Security Features
 - **Hidden Access**: No visible admin buttons or links in the UI
+- **Cross-Platform**: Works on both desktop (keyboard) and mobile (touch)
 - **Strong Password**: Secure password protection (`TP9K9p!g4Fq$M-F`)
-- **Owner-Only**: Only the app owner should know about the keyboard shortcut and password
+- **Owner-Only**: Only the app owner should know about these access methods and password
 
 ## Managing Announcement Requests
 
@@ -53,28 +61,34 @@ The admin panel is completely hidden from regular users. To access it:
 
 ## Important Notes
 
-1. **Keep Credentials Secret**: Never share the keyboard shortcut or password with users
+1. **Keep Credentials Secret**: Never share the access methods or password with users
 2. **Review Carefully**: Check all announcement content before approving
 3. **Use Rejection Reasons**: Provide clear reasons when rejecting announcements
 4. **Monitor Regularly**: Check for pending announcements frequently
 
-## Access Method Summary
+## Access Methods Summary
 
-- **Keyboard Shortcut**: `Ctrl + Shift + A` (works from any page in the application)
-- **Password**: `TP9K9p!g4Fq$M-F`
+### Desktop:
+- **Keyboard Shortcut**: `Ctrl + Shift + A`
 
-The admin system is designed to be completely invisible to regular users while providing full control over the announcement system to the app owner.
+### Mobile/Touch Devices:
+- **Secret Tap**: Tap "UsapTayo" title 7 times quickly (within 3 seconds)
+
+### Password:
+- `TP9K9p!g4Fq$M-F`
+
+The admin system is designed to be completely invisible to regular users while providing full control over the announcement system to the app owner across all devices.
 
 ## Payment Verification Workflow
 
 1. **User submits announcement request** with payment
 2. **Check your payment account** (GCash/Maya) for the ₱10.00 payment
-3. **Access admin panel** using `Ctrl + Shift + A`
+3. **Access admin panel** using desktop shortcut or mobile tap sequence
 4. **Review the request** content and payment details
 5. **Approve or reject** based on content appropriateness and payment verification
 6. **Monitor active announcements** and their expiration
 
-Remember: The admin system is your tool to maintain quality and appropriate content in your chat application while managing the paid announcement feature.
+Remember: The admin system is your tool to maintain quality and appropriate content in your chat application while managing the paid announcement feature on any device.
 
 ## Accessing Admin Panel
 

@@ -51,7 +51,31 @@ export default function App() {
         }
     };
 
-    // Secret keyboard shortcut for admin access (Ctrl+Shift+A)
+    // Secret access methods for admin (works on both desktop and mobile)
+    const [tapCount, setTapCount] = useState(0);
+    const [tapTimer, setTapTimer] = useState(null);
+
+    const handleSecretTap = () => {
+        if (tapTimer) clearTimeout(tapTimer);
+        
+        const newCount = tapCount + 1;
+        setTapCount(newCount);
+        
+        if (newCount >= 7) {
+            // 7 taps triggers admin access
+            setTapCount(0);
+            checkAdminAccess();
+            return;
+        }
+        
+        // Reset counter after 3 seconds of no taps
+        const timer = setTimeout(() => {
+            setTapCount(0);
+        }, 3000);
+        setTapTimer(timer);
+    };
+
+    // Desktop keyboard shortcut (Ctrl+Shift+A)
     useEffect(() => {
         const handleKeyDown = (event) => {
             if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'a') {
@@ -65,6 +89,13 @@ export default function App() {
             document.removeEventListener('keydown', handleKeyDown);
         };
     }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Cleanup tap timer on unmount
+    useEffect(() => {
+        return () => {
+            if (tapTimer) clearTimeout(tapTimer);
+        };
+    }, [tapTimer]);
 
     // Function to approve announcement
     const approveAnnouncement = async (requestId, requestData) => {
@@ -532,7 +563,7 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <LoadingScreen text="Loading..." />
+                    <LoadingScreen text="Loading..." onSecretTap={handleSecretTap} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     <Analytics />
@@ -542,7 +573,7 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <Homepage onAccept={handleHomepageAccept} />
+                    <Homepage onAccept={handleHomepageAccept} onSecretTap={handleSecretTap} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     <Analytics />
@@ -552,7 +583,7 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <NicknamePrompt onProfileCreate={handleProfileCreate} />
+                    <NicknamePrompt onProfileCreate={handleProfileCreate} onSecretTap={handleSecretTap} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     <Analytics />
@@ -562,7 +593,7 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <MatchmakingScreen onFindChat={findChat} onReset={handleReset} />
+                    <MatchmakingScreen onFindChat={findChat} onReset={handleReset} onSecretTap={handleSecretTap} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     <Analytics />
@@ -572,7 +603,7 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <LoadingScreen text="Manifesting your person... 💫✨" />
+                    <LoadingScreen text="Manifesting your person... 💫✨" onSecretTap={handleSecretTap} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     <Analytics />
@@ -582,7 +613,7 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={endChat} activeAnnouncement={activeAnnouncement} onShowAnnouncementModal={showAnnouncementModal} />
+                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={endChat} activeAnnouncement={activeAnnouncement} onShowAnnouncementModal={showAnnouncementModal} onSecretTap={handleSecretTap} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     {announcementModal.show && <AnnouncementModal onClose={hideAnnouncementModal} onSuccess={() => { hideAnnouncementModal(); showNotification('Announcement request submitted! 💫', 'success'); }} />}
@@ -593,7 +624,7 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={leaveEndedChat} onNextStranger={findChat} onBackHome={() => setAppState('matchmaking')} chatEnded={true} activeAnnouncement={activeAnnouncement} onShowAnnouncementModal={showAnnouncementModal} />
+                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={leaveEndedChat} onNextStranger={findChat} onBackHome={() => setAppState('matchmaking')} chatEnded={true} activeAnnouncement={activeAnnouncement} onShowAnnouncementModal={showAnnouncementModal} onSecretTap={handleSecretTap} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     {announcementModal.show && <AnnouncementModal onClose={hideAnnouncementModal} onSuccess={() => { hideAnnouncementModal(); showNotification('Announcement request submitted! 💫', 'success'); }} />}
@@ -620,7 +651,7 @@ export default function App() {
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                     <div className="centered-screen">
                         <div className="prompt-box">
-                            <h1>UsapTayo</h1>
+                            <h1 onClick={handleSecretTap} style={{ cursor: 'default', userSelect: 'none' }}>UsapTayo</h1>
                             <p>Something went wrong. Current state: {appState}</p>
                             <button onClick={() => setAppState('homepage')}>Go to Homepage</button>
                         </div>
@@ -635,7 +666,7 @@ export default function App() {
 
 // --- UI Components ---
 
-const Homepage = ({ onAccept }) => {
+const Homepage = ({ onAccept, onSecretTap }) => {
     const [isOver18, setIsOver18] = useState(false);
     const [agreeTerms, setAgreeTerms] = useState(false);
 
@@ -649,7 +680,7 @@ const Homepage = ({ onAccept }) => {
     return (
         <div className="homepage">
             <div className="homepage-content">
-                <h1>Welcome to UsapTayo</h1>
+                <h1 onClick={onSecretTap} style={{ cursor: 'default', userSelect: 'none' }}>Welcome to UsapTayo</h1>
                 <p>
                     Welcome to UsapTayo, where main character energy meets mystery! ✨ Chat anonymously 
                     with strangers and create those butterfly moments you've been craving. Whether you're 
@@ -712,16 +743,16 @@ const Homepage = ({ onAccept }) => {
     );
 };
 
-const LoadingScreen = ({ text }) => (
+const LoadingScreen = ({ text, onSecretTap }) => (
     <div className="centered-screen loading-animation">
         <div className="prompt-box">
-            <h1>UsapTayo</h1>
+            <h1 onClick={onSecretTap} style={{ cursor: 'default', userSelect: 'none' }}>UsapTayo</h1>
             <p>{text === "Loading..." ? "Getting your vibe ready... ✨" : text}</p>
         </div>
     </div>
 );
 
-const NicknamePrompt = ({ onProfileCreate }) => {
+const NicknamePrompt = ({ onProfileCreate, onSecretTap }) => {
     const [nickname, setNickname] = useState('');
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -730,7 +761,7 @@ const NicknamePrompt = ({ onProfileCreate }) => {
     return (
         <div className="centered-screen">
             <div className="prompt-box">
-                <h1>UsapTayo</h1>
+                <h1 onClick={onSecretTap} style={{ cursor: 'default', userSelect: 'none' }}>UsapTayo</h1>
                 <p>Choose your mystery name, bestie ✨</p>
                 <form onSubmit={handleSubmit}>
                     <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="Your vibe name..." />
@@ -741,11 +772,11 @@ const NicknamePrompt = ({ onProfileCreate }) => {
     );
 };
 
-const MatchmakingScreen = ({ onFindChat, onReset }) => {
+const MatchmakingScreen = ({ onFindChat, onReset, onSecretTap }) => {
     return (
         <div className="centered-screen">
             <div className="prompt-box">
-                <h1>UsapTayo</h1>
+                <h1 onClick={onSecretTap} style={{ cursor: 'default', userSelect: 'none' }}>UsapTayo</h1>
                 <p>Ready ka na ba maging backburner?</p>
                 <button onClick={onFindChat}>Find Your Mystery Person 💫</button>
                 <button onClick={onReset} className="reset-profile-button">
@@ -756,9 +787,9 @@ const MatchmakingScreen = ({ onFindChat, onReset }) => {
     );
 };
 
-const ChatPage = ({ userProfile, chatId, onEndChat, onNextStranger, onBackHome, chatEnded, activeAnnouncement, onShowAnnouncementModal }) => (
+const ChatPage = ({ userProfile, chatId, onEndChat, onNextStranger, onBackHome, chatEnded, activeAnnouncement, onShowAnnouncementModal, onSecretTap }) => (
     <div className="chat-page">
-        <Header chatEnded={chatEnded} />
+        <Header chatEnded={chatEnded} onSecretTap={onSecretTap} />
         {activeAnnouncement && <AnnouncementBanner announcement={activeAnnouncement} />}
         <ChatRoom userProfile={userProfile} chatId={chatId} />
         {!chatEnded && <MessageInput userProfile={userProfile} chatId={chatId} onEndChat={onEndChat} onShowAnnouncementModal={onShowAnnouncementModal} />}
@@ -766,9 +797,9 @@ const ChatPage = ({ userProfile, chatId, onEndChat, onNextStranger, onBackHome, 
     </div>
 );
 
-const Header = ({ chatEnded }) => (
+const Header = ({ chatEnded, onSecretTap }) => (
     <header className="header">
-        <h1>UsapTayo</h1>
+        <h1 onClick={onSecretTap} style={{ cursor: 'default', userSelect: 'none' }}>UsapTayo</h1>
     </header>
 );
 
