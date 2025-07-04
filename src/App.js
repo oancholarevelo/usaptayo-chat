@@ -38,6 +38,27 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// --- Helper Function to Shuffle Arrays ---
+const shuffle = (array) => {
+  let currentIndex = array.length;
+  let randomIndex;
+
+  // While there remain elements to shuffle.
+  while (currentIndex > 0) {
+    // Pick a remaining element.
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+
+    // And swap it with the current element.
+    [array[currentIndex], array[randomIndex]] = [
+      array[randomIndex],
+      array[currentIndex],
+    ];
+  }
+
+  return array;
+};
+
 // --- Main App Component ---
 export default function App() {
   const [user, setUser] = useState(null);
@@ -311,62 +332,75 @@ export default function App() {
 
   // Effect for handling auth and user profile state
   useEffect(() => {
-    // More aggressive session management - ALWAYS start fresh on reload/new visit
-    const startFresh = () => {
-      localStorage.removeItem("usaptayo-user");
-      localStorage.removeItem("usaptayo-last-session");
-      sessionStorage.clear();
-
-      // Set new session flag
-      sessionStorage.setItem("usaptayo-session", Date.now().toString());
-      sessionStorage.setItem("usaptayo-fresh-start", "true");
-
-      // Force homepage state directly
-      setUserProfile(null);
-      setAppState("homepage");
-      setChatId(null);
-    };
-
-    // Always start fresh on each page load
-    startFresh();
-
     const initializeAuth = async () => {
       try {
         await signInAnonymously(auth);
       } catch (error) {
         console.error("Anonymous sign-in failed:", error);
-        setAppState("homepage");
+        setAppState("homepage"); // Default to homepage on error
       }
     };
-
-    initializeAuth();
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
 
-        try {
-          // Always clear existing user profile in database on new visit
-          const userRef = doc(db, "users", currentUser.uid);
-          await setDoc(userRef, {}, { merge: false });
+        // Check for a stored chat session
+        const storedChatId = sessionStorage.getItem("usaptayo-chatId");
 
-          console.log("User profile cleared for fresh start");
-          setUserProfile(null);
-          setAppState("homepage");
-          setChatId(null);
-        } catch (error) {
-          console.error("Error handling user profile:", error);
-          setAppState("homepage");
+        if (storedChatId) {
+          // A chat ID was found, let's try to restore the session.
+          const chatRef = doc(db, "chats", storedChatId);
+          const chatSnap = await getDoc(chatRef);
+          
+          // Check if the chat still exists and is active in Firestore
+          if (chatSnap.exists() && chatSnap.data().status === "active") {
+            const userRef = doc(db, "users", currentUser.uid);
+            const userSnap = await getDoc(userRef);
+
+            if (userSnap.exists()) {
+              console.log("Restoring active chat session:", storedChatId);
+              setUserProfile(userSnap.data());
+              setChatId(storedChatId);
+              setAppState("chatting"); // Go directly to the chat
+              return; // Exit to prevent falling through to homepage
+            }
+          }
+          // If the chat is no longer active, remove the old ID
+          sessionStorage.removeItem("usaptayo-chatId");
         }
+
+        // --- Fallback Logic ---
+        // If no active chat session is found, start at the homepage.
+        setAppState("homepage");
+        setUserProfile(null);
+        setChatId(null);
+
       } else {
+        // Not signed in
         setUser(null);
         setUserProfile(null);
         setAppState("loading");
       }
     });
+    
+    initializeAuth();
 
     return () => unsubscribe();
-  }, []);
+  }, [])
+
+  useEffect(() => {
+    // If user is chatting and we have a chatId, save it.
+    if (appState === 'chatting' && chatId) {
+      sessionStorage.setItem('usaptayo-chatId', chatId);
+    }
+    
+    // If the user is no longer chatting (e.g., they ended the chat),
+    // remove the ID so they don't get put back into an old chat on refresh.
+    if (appState !== 'chatting') {
+      sessionStorage.removeItem('usaptayo-chatId');
+    }
+  }, [appState, chatId]);
 
   // Effect for listening to user status changes - fix the undefined status issue
   useEffect(() => {
@@ -580,34 +614,37 @@ export default function App() {
     try {
       // Improved transaction with better error handling and retry logic
       const result = await runTransaction(db, async (transaction) => {
-        // Query for waiting users excluding current user
+        // Query for a small batch of waiting users to reduce contention
         const waitingUsersQuery = query(
           collection(db, "users"),
           where("status", "==", "waiting"),
-          where("uid", "!=", user.uid)
+          where("uid", "!=", user.uid),
+          limit(10) // OPTIMIZATION: Limit the number of candidates
         );
 
         const waitingUsersSnap = await getDocs(waitingUsersQuery);
-        console.log("Found waiting users:", waitingUsersSnap.size);
+        console.log("Found a batch of potential partners:", waitingUsersSnap.size);
 
         if (!waitingUsersSnap.empty) {
-          // Get the first available partner
+          // OPTIMIZATION: Shuffle the candidates to distribute load
+          const shuffledDocs = shuffle(waitingUsersSnap.docs);
+          
           let partner = null;
           let partnerRef = null;
 
-          // Try each waiting user until we find one that's still available
-          for (const doc of waitingUsersSnap.docs) {
+          // Try each shuffled user until we find one that's still available
+          for (const doc of shuffledDocs) {
             const potentialPartner = doc.data();
             const potentialPartnerRef = doc.ref;
 
-            // Double-check partner status in transaction
+            // Double-check partner status in transaction to ensure they are still waiting
             const partnerDoc = await transaction.get(potentialPartnerRef);
 
             if (partnerDoc.exists() && partnerDoc.data().status === "waiting") {
               partner = potentialPartner;
               partnerRef = potentialPartnerRef;
               console.log("Found available partner:", partner.uid);
-              break;
+              break; // Partner found, exit the loop
             } else {
               console.log("Partner no longer available:", potentialPartner.uid);
             }
@@ -649,7 +686,7 @@ export default function App() {
 
             return { chatId: newChatRef.id, partner: partner };
           } else {
-            console.log("No available partners found");
+            console.log("No available partners found in this batch");
             return null;
           }
         } else {
