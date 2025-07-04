@@ -561,45 +561,110 @@ export default function App() {
   }, []);
 
   const findChat = async () => {
-    if (!user) {
-      console.error("User not available for debug test.");
-      showNotification("User not ready for test.", "error");
+    if (!user || !userProfile) {
+      console.error("User or user profile not available for matchmaking.");
+      showNotification("Something went wrong, please try again.", "error");
       return;
     }
 
-    console.log("--- STARTING DEBUG TEST ---");
-    setAppState("waiting"); // Go to waiting screen for feedback
+    console.log("Starting matchmaking for user:", user.uid);
+    setAppState("waiting");
 
     try {
-      await runTransaction(db, async (transaction) => {
-        console.log("Debug: Inside transaction block.");
-        const userRef = doc(db, "users", user.uid);
-        
-        // This is the simplest possible read operation inside a transaction.
-        // We are just trying to read the current user's own document.
-        console.log("Debug: Attempting to read own user document...");
-        const userDoc = await transaction.get(userRef); 
+      // Use a transaction to find and match users atomically
+      const result = await runTransaction(db, async (transaction) => {
+        // Step 1: Query the USERS collection for a waiting partner
+        const waitingUsersQuery = query(
+          collection(db, "users"),
+          where("status", "==", "waiting"),
+          limit(1)
+        );
+        const waitingDocs = await transaction.get(waitingUsersQuery);
 
-        if (userDoc.exists()) {
-          console.log("✅ SUCCESS: Transaction read the document successfully.", userDoc.data());
-          // We can add a simple write to test that too.
-          transaction.update(userRef, { lastTest: serverTimestamp() });
+        if (!waitingDocs.empty) {
+          // --- MATCH FOUND ---
+          const partnerDoc = waitingDocs.docs[0];
+
+          // Safeguard: Make sure we didn't somehow find ourselves.
+          if (partnerDoc.id === user.uid) {
+            console.log("Found myself in the waiting pool. Aborting to allow another attempt.");
+            return null;
+          }
+
+          const partnerProfile = partnerDoc.data();
+          const partnerRef = partnerDoc.ref;
+          console.log("Partner found:", partnerProfile.displayName);
+
+          // Step 2: Create the new chat document
+          const newChatRef = doc(collection(db, "chats"));
+          transaction.set(newChatRef, {
+            users: [user.uid, partnerProfile.uid],
+            userNames: {
+              [user.uid]: userProfile.displayName,
+              [partnerProfile.uid]: partnerProfile.displayName,
+            },
+            createdAt: serverTimestamp(),
+            status: "active",
+          });
+
+          // Step 3: Update BOTH users' status to 'chatting'
+          const currentUserRef = doc(db, "users", user.uid);
+          transaction.update(currentUserRef, {
+            status: "chatting",
+            currentChatId: newChatRef.id,
+          });
+          transaction.update(partnerRef, {
+            status: "chatting",
+            currentChatId: newChatRef.id,
+          });
+
+          return { chatId: newChatRef.id, partner: partnerProfile };
         } else {
-          // This should not happen if the user exists.
-          console.error("❌ ERROR: Transaction ran but could not find the user's own document.");
+          // --- NO MATCH FOUND ---
+          console.log("No one is waiting, updating my status to 'waiting'.");
+          const currentUserRef = doc(db, "users", user.uid);
+          transaction.update(currentUserRef, { status: "waiting" });
+          return null;
         }
       });
 
-      console.log("--- DEBUG TEST COMPLETED SUCCESSFULLY ---");
-      showNotification("Debug test finished. Check the console for ✅ SUCCESS.", "info");
+      // After the transaction completes
+      if (result) {
+        console.log("Match successful, adding connection messages to chat:", result.chatId);
+        const messagesRef = collection(db, "chats", result.chatId, "messages");
 
+        const myMessage = {
+          text: `May ka-talking stage ka na: ${result.partner.displayName}! Go na, bestie. 💅`,
+          createdAt: serverTimestamp(),
+          uid: "system",
+          displayName: "System",
+          isSystemMessage: true,
+          type: "connection",
+          visibleTo: user.uid,
+        };
+
+        const partnerMessage = {
+          text: `May ka-talking stage ka na: ${userProfile.displayName}! Go na, bestie. 💅`,
+          createdAt: serverTimestamp(),
+          uid: "system",
+          displayName: "System",
+          isSystemMessage: true,
+          type: "connection",
+          visibleTo: result.partner.uid,
+        };
+
+        await Promise.all([
+          addDoc(messagesRef, myMessage),
+          addDoc(messagesRef, partnerMessage),
+        ]);
+        console.log("Connection messages added successfully.");
+      } else {
+        console.log("No match found, user is now waiting.");
+      }
     } catch (error) {
-      console.error("--- DEBUG TEST FAILED ---", error);
-      showNotification("Debug test FAILED. Check the console for ❌ ERROR.", "error");
-    
-    } finally {
-      // Always revert the user back to the matchmaking screen after the test.
-      console.log("Debug: Reverting user status to matchmaking.");
+      console.error("Matchmaking transaction failed:", error);
+      showNotification("Matchmaking failed. Please try again.", "error");
+
       const userRef = doc(db, "users", user.uid);
       await setDoc(userRef, { status: "matchmaking" }, { merge: true });
     }
