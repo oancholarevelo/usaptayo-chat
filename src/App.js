@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, setDoc, limit, where, runTransaction, getDocs, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, setDoc, limit, where, runTransaction, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
 import { Analytics } from "@vercel/analytics/react";
 import './App.css'; // Import the CSS file
 
@@ -25,14 +25,98 @@ const db = getFirestore(app);
 export default function App() {
     const [user, setUser] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
-    const [appState, setAppState] = useState('loading'); // loading, homepage, nickname, matchmaking, waiting, chatting
+    const [appState, setAppState] = useState('loading'); // loading, homepage, nickname, matchmaking, waiting, chatting, admin
     const [chatId, setChatId] = useState(null);
     const [notification, setNotification] = useState({ show: false, message: '', type: 'info' }); // info, success, error
     const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', onConfirm: null });
+    const [announcementModal, setAnnouncementModal] = useState({ show: false });
+    const [activeAnnouncement, setActiveAnnouncement] = useState(null);
+    // eslint-disable-next-line no-unused-vars
+    const [isAdmin, setIsAdmin] = useState(false);
     const [theme, setTheme] = useState(() => {
         // Get theme from localStorage or default to 'dark'
         return localStorage.getItem('usaptayo-theme') || 'dark';
     });
+
+    // Admin access function - triggered by secret keyboard shortcut
+    const checkAdminAccess = () => {
+        const adminPassword = prompt('Enter admin password:');
+        // Secure admin password
+        if (adminPassword === 'TP9K9p!g4Fq$M-F') {
+            setIsAdmin(true);
+            setAppState('admin');
+            showNotification('Admin access granted! ✨', 'success');
+        } else {
+            showNotification('Invalid admin password!', 'error');
+        }
+    };
+
+    // Secret keyboard shortcut for admin access (Ctrl+Shift+A)
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'a') {
+                event.preventDefault();
+                checkAdminAccess();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Function to approve announcement
+    const approveAnnouncement = async (requestId, requestData) => {
+        try {
+            const batch = writeBatch(db);
+            
+            // Create the active announcement
+            const announcementRef = doc(collection(db, 'announcements'));
+            const expirationTime = new Date();
+            expirationTime.setMinutes(expirationTime.getMinutes() + requestData.duration);
+            
+            batch.set(announcementRef, {
+                message: requestData.message,
+                createdAt: serverTimestamp(),
+                expiresAt: expirationTime,
+                approvedBy: user.uid,
+                originalRequestId: requestId
+            });
+            
+            // Update the request status
+            const requestRef = doc(db, 'announcement_requests', requestId);
+            batch.update(requestRef, {
+                status: 'approved',
+                approvedAt: serverTimestamp(),
+                approvedBy: user.uid
+            });
+            
+            await batch.commit();
+            showNotification('Announcement approved and published! 📢', 'success');
+        } catch (error) {
+            console.error("Error approving announcement:", error);
+            showNotification('Failed to approve announcement!', 'error');
+        }
+    };
+
+    // Function to reject announcement
+    const rejectAnnouncement = async (requestId, reason) => {
+        try {
+            const requestRef = doc(db, 'announcement_requests', requestId);
+            await updateDoc(requestRef, {
+                status: 'rejected',
+                rejectedAt: serverTimestamp(),
+                rejectedBy: user.uid,
+                rejectionReason: reason
+            });
+            
+            showNotification('Announcement rejected!', 'success');
+        } catch (error) {
+            console.error("Error rejecting announcement:", error);
+            showNotification('Failed to reject announcement!', 'error');
+        }
+    };
 
     // Theme toggle function
     const toggleTheme = () => {
@@ -60,6 +144,42 @@ export default function App() {
     const hideConfirmDialog = () => {
         setConfirmDialog({ show: false, message: '', onConfirm: null });
     };
+
+    const showAnnouncementModal = () => {
+        setAnnouncementModal({ show: true });
+    };
+
+    const hideAnnouncementModal = () => {
+        setAnnouncementModal({ show: false });
+    };
+
+    // Check for active announcements on app load
+    useEffect(() => {
+        const checkActiveAnnouncement = async () => {
+            try {
+                const announcementsRef = collection(db, 'announcements');
+                const q = query(
+                    announcementsRef,
+                    where('expiresAt', '>', new Date()),
+                    orderBy('createdAt', 'desc'),
+                    limit(1)
+                );
+                const unsubscribe = onSnapshot(q, (querySnapshot) => {
+                    if (!querySnapshot.empty) {
+                        const announcement = querySnapshot.docs[0].data();
+                        setActiveAnnouncement(announcement);
+                    } else {
+                        setActiveAnnouncement(null);
+                    }
+                });
+                return unsubscribe;
+            } catch (error) {
+                console.error("Error fetching announcements:", error);
+            }
+        };
+
+        checkActiveAnnouncement();
+    }, []);
 
     // Effect for handling auth and user profile state
     useEffect(() => {
@@ -462,9 +582,10 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={endChat} />
+                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={endChat} activeAnnouncement={activeAnnouncement} onShowAnnouncementModal={showAnnouncementModal} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    {announcementModal.show && <AnnouncementModal onClose={hideAnnouncementModal} onSuccess={() => { hideAnnouncementModal(); showNotification('Announcement request submitted! 💫', 'success'); }} />}
                     <Analytics />
                 </>
             );
@@ -472,7 +593,22 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={leaveEndedChat} onNextStranger={findChat} onBackHome={() => setAppState('matchmaking')} chatEnded={true} />
+                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={leaveEndedChat} onNextStranger={findChat} onBackHome={() => setAppState('matchmaking')} chatEnded={true} activeAnnouncement={activeAnnouncement} onShowAnnouncementModal={showAnnouncementModal} />
+                    {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
+                    {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
+                    {announcementModal.show && <AnnouncementModal onClose={hideAnnouncementModal} onSuccess={() => { hideAnnouncementModal(); showNotification('Announcement request submitted! 💫', 'success'); }} />}
+                    <Analytics />
+                </>
+            );
+        case 'admin':
+            return (
+                <>
+                    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+                    <AdminPanel 
+                        onApprove={approveAnnouncement} 
+                        onReject={rejectAnnouncement} 
+                        onLogout={() => { setIsAdmin(false); setAppState('homepage'); }}
+                    />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     <Analytics />
@@ -620,11 +756,12 @@ const MatchmakingScreen = ({ onFindChat, onReset }) => {
     );
 };
 
-const ChatPage = ({ userProfile, chatId, onEndChat, onNextStranger, onBackHome, chatEnded }) => (
+const ChatPage = ({ userProfile, chatId, onEndChat, onNextStranger, onBackHome, chatEnded, activeAnnouncement, onShowAnnouncementModal }) => (
     <div className="chat-page">
         <Header chatEnded={chatEnded} />
+        {activeAnnouncement && <AnnouncementBanner announcement={activeAnnouncement} />}
         <ChatRoom userProfile={userProfile} chatId={chatId} />
-        {!chatEnded && <MessageInput userProfile={userProfile} chatId={chatId} onEndChat={onEndChat} />}
+        {!chatEnded && <MessageInput userProfile={userProfile} chatId={chatId} onEndChat={onEndChat} onShowAnnouncementModal={onShowAnnouncementModal} />}
         {chatEnded && <ChatEndedActions onNextStranger={onNextStranger} onBackHome={onBackHome} />}
     </div>
 );
@@ -728,7 +865,7 @@ const ChatMessage = ({ message, currentUserUID }) => {
     );
 };
 
-const MessageInput = ({ userProfile, chatId, onEndChat }) => {
+const MessageInput = ({ userProfile, chatId, onEndChat, onShowAnnouncementModal }) => {
     const [formValue, setFormValue] = useState('');
     const sendMessage = async (e) => {
         e.preventDefault();
@@ -750,6 +887,9 @@ const MessageInput = ({ userProfile, chatId, onEndChat }) => {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
+            </button>
+            <button type="button" onClick={onShowAnnouncementModal} className="announcement-button" title="Create Paid Announcement">
+                📢
             </button>
             <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="Say something that matters... ✨" />
             <button type="submit" disabled={!formValue.trim()} className="send-button">
@@ -824,3 +964,245 @@ const ChatEndedActions = ({ onNextStranger, onBackHome }) => (
         </button>
     </div>
 );
+
+// Announcement Banner Component
+const AnnouncementBanner = ({ announcement }) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+        const updateTimeLeft = () => {
+            const now = new Date();
+            const expiresAt = announcement.expiresAt.toDate();
+            const timeDiff = expiresAt - now;
+            
+            if (timeDiff > 0) {
+                const minutes = Math.floor(timeDiff / (1000 * 60));
+                const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+                setTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+            } else {
+                setTimeLeft('Expired');
+            }
+        };
+
+        updateTimeLeft();
+        const interval = setInterval(updateTimeLeft, 1000);
+        return () => clearInterval(interval);
+    }, [announcement]);
+
+    return (
+        <div className="announcement-banner">
+            <div className="announcement-content">
+                <span className="announcement-icon">📢</span>
+                <span className="announcement-text">{announcement.message}</span>
+                <span className="announcement-timer">{timeLeft}</span>
+            </div>
+        </div>
+    );
+};
+
+// Announcement Modal Component
+const AnnouncementModal = ({ onClose, onSuccess }) => {
+    const [message, setMessage] = useState('');
+    const [step, setStep] = useState(1); // 1: compose, 2: payment
+
+    const handleNext = () => {
+        if (message.trim().length > 0) {
+            setStep(2);
+        }
+    };
+
+    const handleSubmit = async () => {
+        try {
+            // Add to announcements collection for admin review
+            await addDoc(collection(db, 'announcement_requests'), {
+                message: message.trim(),
+                status: 'pending',
+                createdAt: serverTimestamp(),
+                paymentAmount: 10,
+                duration: 10 // minutes
+            });
+            onSuccess();
+        } catch (error) {
+            console.error("Error submitting announcement:", error);
+        }
+    };
+
+    return (
+        <div className="announcement-modal-overlay">
+            <div className="announcement-modal">
+                <div className="announcement-modal-header">
+                    <h3>Create Your Billboard ✨</h3>
+                    <button onClick={onClose} className="close-button">×</button>
+                </div>
+                
+                {step === 1 && (
+                    <div className="announcement-modal-content">
+                        <p>Share your vibe with everyone on UsapTayo! 💫</p>
+                        <textarea
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="What do you want to tell the world? ✨"
+                            maxLength={200}
+                            rows={4}
+                        />
+                        <div className="char-count">{message.length}/200</div>
+                        <div className="announcement-pricing">
+                            <p>📍 Your message will be pinned for <strong>10 minutes</strong></p>
+                            <p>💰 Price: <strong>₱10.00</strong></p>
+                        </div>
+                        <button 
+                            onClick={handleNext} 
+                            disabled={message.trim().length === 0}
+                            className="next-button"
+                        >
+                            Next: Payment 💳
+                        </button>
+                    </div>
+                )}
+
+                {step === 2 && (
+                    <div className="announcement-modal-content">
+                        <h4>Payment Details 💳</h4>
+                        <div className="payment-info">
+                            <div className="payment-method">
+                                <h5>GCash 📱</h5>
+                                <p className="payment-number">09615814316</p>
+                                <p className="payment-name">Oliver Revelo</p>
+                            </div>
+                            <div className="payment-method">
+                                <h5>Maya 💙</h5>
+                                <p className="payment-number">09615814316</p>
+                                <p className="payment-name">Oliver Revelo</p>
+                            </div>
+                        </div>
+                        <div className="payment-instructions">
+                            <p><strong>Instructions:</strong></p>
+                            <ol>
+                                <li>Send exactly ₱10.00 to any of the numbers above</li>
+                                <li>Take a screenshot of your payment confirmation</li>
+                                <li>Send the screenshot to our admin for verification</li>
+                                <li>Your announcement will go live within 5 minutes! ⚡</li>
+                            </ol>
+                        </div>
+                        <div className="announcement-preview">
+                            <h5>Your Message Preview:</h5>
+                            <div className="preview-banner">
+                                📢 {message}
+                            </div>
+                        </div>
+                        <div className="modal-buttons">
+                            <button onClick={() => setStep(1)} className="back-button">
+                                Back
+                            </button>
+                            <button onClick={handleSubmit} className="submit-button">
+                                Submit Request
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Admin Panel Component
+const AdminPanel = ({ onApprove, onReject, onLogout }) => {
+    const [requests, setRequests] = useState([]);
+
+    useEffect(() => {
+        const fetchRequests = async () => {
+            try {
+                const requestsRef = collection(db, 'announcement_requests');
+                const q = query(
+                    requestsRef, 
+                    where('status', '==', 'pending'),
+                    orderBy('createdAt', 'desc')
+                );
+                const unsubscribe = onSnapshot(q, (querySnapshot) => {
+                    const reqs = querySnapshot.docs.map(doc => ({ 
+                        id: doc.id, 
+                        ...doc.data(),
+                        createdAt: doc.data().createdAt?.toDate() || new Date()
+                    }));
+                    setRequests(reqs);
+                });
+                return unsubscribe;
+            } catch (error) {
+                console.error("Error fetching announcement requests:", error);
+            }
+        };
+
+        fetchRequests();
+    }, []);
+
+    const formatDate = (date) => {
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    return (
+        <div className="admin-panel">
+            <div className="admin-header">
+                <h2>Admin Panel - Announcement Requests</h2>
+                <button onClick={onLogout} className="logout-button">
+                    Logout
+                </button>
+            </div>
+            <div className="admin-content">
+                <h3>Pending Requests ({requests.length})</h3>
+                {requests.length === 0 && (
+                    <div className="no-requests">
+                        <p>No pending announcement requests ✨</p>
+                        <p>All caught up! 🎉</p>
+                    </div>
+                )}
+                {requests.map(request => (
+                    <div key={request.id} className="request-card">
+                        <div className="request-header">
+                            <span className="request-time">
+                                📅 {formatDate(request.createdAt)}
+                            </span>
+                            <span className="request-price">
+                                💰 ₱{request.paymentAmount || 10}.00
+                            </span>
+                        </div>
+                        <p className="request-message">"{request.message}"</p>
+                        <div className="request-details">
+                            <span>Duration: {request.duration || 10} minutes</span>
+                            <span>Status: {request.status}</span>
+                        </div>
+                        <div className="request-actions">
+                            <button 
+                                onClick={() => {
+                                    const confirmed = window.confirm(
+                                        `Approve this announcement?\n\nMessage: "${request.message}"\n\nMake sure payment of ₱${request.paymentAmount || 10} has been received before approving.`
+                                    );
+                                    if (confirmed) {
+                                        onApprove(request.id, request);
+                                    }
+                                }} 
+                                className="approve-button"
+                            >
+                                ✅ Approve & Publish
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    const reason = prompt('Rejection reason (will be logged):');
+                                    if (reason) onReject(request.id, reason);
+                                }} 
+                                className="reject-button"
+                            >
+                                ❌ Reject
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};

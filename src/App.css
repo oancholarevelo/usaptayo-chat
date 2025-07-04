@@ -695,38 +695,708 @@ body {
   transform: translateY(-1px);
 }
 
+/* System Message Styles */
+.system-message {
+  text-align: center;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-style: italic;
+  border: 1px solid var(--border-color);
+}
+
+.system-message.connection {
+  background-color: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.system-message.disconnection {
+  background-color: var(--error-color);
+  color: white;
+  border-color: var(--error-color);
+  font-weight: 500;
+}
+
+/* Theme Toggle Styles */
+.theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 100;
+  color: var(--text-primary);
+}
+
+.theme-toggle:hover {
+  background: var(--bg-tertiary);
+  transform: scale(1.1);
+}
+
+.theme-toggle svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover svg {
+  transform: rotate(15deg);
+}
+
+/* Announcement Banner Styles */
+.announcement-banner {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  position: relative;
+  animation: slideDown 0.5s ease-out;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.announcement-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.announcement-icon {
+  font-size: 1.25rem;
+  animation: pulse 2s infinite;
+}
+
+.announcement-text {
+  flex: 1;
+  font-weight: 500;
+  text-align: center;
+}
+
+.announcement-timer {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-width: 3rem;
+  text-align: center;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Announcement Modal Styles */
+.announcement-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.announcement-modal {
+  background-color: var(--bg-secondary);
+  border-radius: 1rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: scaleIn 0.3s ease-out;
+  border: 1px solid var(--border-color);
+}
+
+.announcement-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.announcement-modal-header h3 {
+  color: var(--accent-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  transition: color 0.2s;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-button:hover {
+  color: var(--text-primary);
+}
+
+.announcement-modal-content {
+  padding: 1.5rem;
+}
+
+.announcement-modal-content p {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.announcement-modal-content textarea {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.announcement-modal-content textarea:focus {
+  outline: 2px solid var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.char-count {
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.announcement-pricing {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.announcement-pricing p {
+  margin: 0.5rem 0;
+  color: var(--text-primary);
+}
+
+.announcement-pricing strong {
+  color: var(--accent-primary);
+}
+
+.next-button {
+  width: 100%;
+  background-color: var(--accent-primary);
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 1rem;
+}
+
+.next-button:hover {
+  background-color: var(--accent-hover);
+}
+
+.next-button:disabled {
+  background-color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.payment-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.payment-method {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.payment-method h5 {
+  color: var(--accent-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.payment-number {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  margin: 0.5rem 0;
+  letter-spacing: 0.5px;
+}
+
+.payment-name {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+  font-style: italic;
+}
+
+.payment-instructions {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.payment-instructions p {
+  color: var(--accent-primary);
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.payment-instructions ol {
+  color: var(--text-primary);
+  padding-left: 1.5rem;
+  line-height: 1.6;
+}
+
+.payment-instructions li {
+  margin-bottom: 0.5rem;
+}
+
+.announcement-preview {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.announcement-preview h5 {
+  color: var(--accent-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+}
+
+.preview-banner {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+}
+
+.back-button {
+  background-color: var(--text-muted);
+  color: white;
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex: 1;
+}
+
+.back-button:hover {
+  background-color: var(--border-color);
+}
+
+.submit-button {
+  background-color: var(--success-color);
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex: 1;
+}
+
+.submit-button:hover {
+  background-color: #059669;
+}
+
+/* Announcement Button in Message Form */
+.announcement-button {
+  background-color: var(--accent-secondary);
+  color: white;
+  font-weight: bold;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1rem;
+}
+
+.announcement-button:hover {
+  background-color: var(--accent-primary);
+  transform: scale(1.05);
+}
+
+.announcement-button:active {
+  transform: scale(0.95);
+}
+
+/* Mobile Responsive Adjustments for Announcements */
 @media (max-width: 768px) {
-  .notification-toast {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    max-width: none;
+  .announcement-content {
+    flex-direction: column;
+    gap: 0.5rem;
   }
   
-  .confirm-dialog {
+  .announcement-timer {
+    align-self: center;
+  }
+  
+  .announcement-modal {
     width: 95%;
-    padding: 1.5rem;
+    max-height: 95vh;
   }
   
-  .confirm-dialog-buttons {
+  .announcement-modal-header {
+    padding: 1rem;
+  }
+  
+  .announcement-modal-content {
+    padding: 1rem;
+  }
+  
+  .payment-info {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-buttons {
     flex-direction: column;
   }
   
-  .confirm-dialog-buttons button {
-    width: 100%;
+  .theme-toggle {
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
   }
   
-  .chat-ended-actions {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  .theme-toggle svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+/* This mobile block is consolidated below */
+
+/* Final Mobile Layout Fixes - Highest Priority */
+@media (max-width: 768px) {
+  /* Override any conflicting mobile rules */
+  .chat-page {
+    height: 100vh !important;
+    height: 100dvh !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    overflow: hidden !important;
   }
   
-  .chat-ended-actions button {
-    font-size: 0.875rem;
+  .header {
+    height: 60px !important;
+    min-height: 60px !important;
+    max-height: 60px !important;
+    padding: 1rem !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .chat-room {
+    height: calc(100vh - 120px) !important; /* Header (60px) + Message Form (60px) */
+    height: calc(100dvh - 120px) !important;
+    overflow-y: auto !important;
+    padding: 1rem !important;
+    padding-bottom: 2rem !important; /* Minimal bottom padding */
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .message-form {
+    height: 60px !important;
+    min-height: 60px !important;
+    max-height: 60px !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    padding: 0.75rem 1rem !important;
+    z-index: 1000 !important;
+  }
+  
+  .message-form input {
+    height: auto !important;
+    padding: 0.625rem 1rem !important;
+  }
+  
+  .message-form button {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 0.5rem !important;
+  }
+}
+
+/* Safe Area Support for Mobile Devices */
+@supports (padding: max(0px)) {
+  .message-form {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+  }
+  
+  .chat-room {
+    padding-bottom: max(2rem, calc(env(safe-area-inset-bottom) + 1rem)) !important;
+  }
+}
+
+/* Admin Panel Styles */
+.admin-panel {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 2rem;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.admin-header h2 {
+  margin: 0;
+  color: var(--accent-primary);
+}
+
+.logout-button {
+  background: var(--error-color);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.logout-button:hover {
+  background: #dc2626;
+}
+
+.admin-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.admin-content h3 {
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+}
+
+.request-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.request-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.1);
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.request-time {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.request-price {
+  color: var(--success-color);
+  font-weight: 600;
+}
+
+.request-message {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  border-left: 4px solid var(--accent-primary);
+  font-style: italic;
+}
+
+.request-details {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.no-requests {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.request-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.approve-button {
+  background: var(--success-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.approve-button:hover {
+  background: #059669;
+}
+
+.reject-button {
+  background: var(--error-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.reject-button:hover {
+  background: #dc2626;
+}
+
+.admin-access {
+  transition: opacity 0.3s;
+}
+
+.admin-access:hover {
+  opacity: 0.5 !important;
+}
+
+/* Mobile responsiveness for admin panel */
+@media (max-width: 768px) {
+  .admin-panel {
     padding: 1rem;
+  }
+  
+  .admin-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .request-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  
+  .request-details {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .request-actions {
+    flex-direction: column;
+  }
+  
+  .approve-button,
+  .reject-button {
+    width: 100%;
   }
 }
 
@@ -853,7 +1523,7 @@ body {
   background-color: #dc2626;
 }
 
-/* Animations */
+/* Additional Animations */
 @keyframes slideIn {
   from {
     transform: translateX(100%);
@@ -882,198 +1552,5 @@ body {
   to {
     transform: scale(1);
     opacity: 1;
-  }
-}
-
-/* Mobile styles for notifications and dialogs */
-@media (max-width: 768px) {
-  .notification-toast {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    max-width: none;
-  }
-  
-  .confirm-dialog {
-    width: 95%;
-    padding: 1.5rem;
-  }
-  
-  .confirm-dialog-buttons {
-    flex-direction: column;
-  }
-  
-  .confirm-dialog-buttons button {
-    width: 100%;
-  }
-}
-
-/* Final Mobile Layout Fixes - Highest Priority */
-@media (max-width: 768px) {
-  /* Override any conflicting mobile rules */
-  .chat-page {
-    height: 100vh !important;
-    height: 100dvh !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    overflow: hidden !important;
-  }
-  
-  .header {
-    height: 60px !important;
-    min-height: 60px !important;
-    max-height: 60px !important;
-    padding: 1rem !important;
-    flex-shrink: 0 !important;
-  }
-  
-  .chat-room {
-    height: calc(100vh - 120px) !important; /* Header (60px) + Message Form (60px) */
-    height: calc(100dvh - 120px) !important;
-    overflow-y: auto !important;
-    padding: 1rem !important;
-    padding-bottom: 2rem !important; /* Minimal bottom padding */
-    -webkit-overflow-scrolling: touch !important;
-  }
-  
-  .message-form {
-    height: 60px !important;
-    min-height: 60px !important;
-    max-height: 60px !important;
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    padding: 0.75rem 1rem !important;
-    z-index: 1000 !important;
-  }
-  
-  .message-form input {
-    height: auto !important;
-    padding: 0.625rem 1rem !important;
-  }
-  
-  .message-form button {
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    min-height: 40px !important;
-    padding: 0.5rem !important;
-  }
-}
-
-/* System Message Styles */
-.system-message {
-  display: flex;
-  justify-content: center;
-  margin: 1.5rem 0; /* Increased margin for better spacing */
-  padding: 0 1rem;
-}
-
-.system-message p {
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
-  padding: 0.75rem 1.5rem;
-  border-radius: 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  margin: 0;
-  text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--border-color);
-}
-
-/* Remove the gradient pseudo-element */
-/* .system-message p::before - removed gradient line */
-
-/* Special styling for connection messages */
-.system-message p:contains("connected with") {
-  background-color: var(--accent-primary);
-  color: #ffffff;
-  border-color: var(--accent-secondary);
-}
-
-/* Alternative approach for connection messages using a CSS class */
-.system-message.connection p {
-  background-color: var(--accent-primary);
-  color: #ffffff;
-  border-color: var(--accent-secondary);
-  font-weight: 600;
-}
-
-/* Disconnection message styling */
-.system-message.disconnection p {
-  background-color: var(--error-color);
-  color: #ffffff;
-  border-color: var(--error-color);
-}
-
-/* Disconnected Notice Styles */
-.disconnected-notice {
-  background-color: #1f2937;
-  padding: 1rem;
-  border-top: 1px solid #374151;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.disconnected-notice p {
-  color: #d1d5db;
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-/* Mobile styles for disconnected notice */
-@media (max-width: 768px) {
-  .disconnected-notice {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: #1f2937;
-    border-top: 1px solid #374151;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-    z-index: 10;
-  }
-}
-
-/* Theme Toggle Button */
-.theme-toggle {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 50%;
-  width: 3rem;
-  height: 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 1001;
-  font-size: 1.5rem; /* Increased from 1.25rem for better icon visibility */
-}
-
-.theme-toggle:hover {
-  background-color: var(--accent-primary);
-  color: white;
-  transform: scale(1.1);
-}
-
-/* Mobile theme toggle adjustments */
-@media (max-width: 768px) {
-  .theme-toggle {
-    top: 0.75rem;
-    right: 0.75rem;
-    width: 2.75rem; /* Slightly larger for better touch target */
-    height: 2.75rem;
-    font-size: 1.25rem; /* Increased from 1rem for better mobile visibility */
   }
 }
