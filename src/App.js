@@ -631,9 +631,6 @@ const ChatPage = ({ userProfile, chatId, onEndChat, onNextStranger, onBackHome, 
 const Header = ({ chatEnded }) => (
     <header className="header">
         <h1>UsapTayo</h1>
-        <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            {chatEnded ? 'Chat Ended' : 'Connected'}
-        </div>
     </header>
 );
 
@@ -800,7 +797,16 @@ const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
 // Theme Toggle Component
 const ThemeToggle = ({ theme, toggleTheme }) => (
     <button className="theme-toggle" onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
-        {theme === 'dark' ? '☀️' : '🌙'}
+        {theme === 'dark' ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="4"/>
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 6.34L4.93 4.93M19.07 19.07l-1.41-1.41"/>
+            </svg>
+        ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+        )}
     </button>
 );
 
@@ -808,15 +814,9 @@ const ThemeToggle = ({ theme, toggleTheme }) => (
 const ChatEndedActions = ({ onNextStranger, onBackHome }) => (
     <div className="chat-ended-actions">
         <button onClick={onNextStranger} className="next-stranger-button">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M13 17L18 12L13 7M6 12H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
             Next Stranger
         </button>
         <button onClick={onBackHome} className="back-home-button">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5523 5.44772 21 6 21H9M19 10L21 12M19 10V20C19 20.5523 18.5523 21 18 21H15M9 21C9.55228 21 10 20.5523 10 20V16C10 15.4477 10.4477 15 11 15H13C13.5523 15 14 15.4477 14 16V20C14 20.5523 14.4477 21 15 21M9 21H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
             Back to Home
         </button>
     </div>
