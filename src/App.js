@@ -1212,48 +1212,33 @@ export default function App() {
         </>
       );
     case "admin":
-  return (
-    <>
-      <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-      <AdminPanel
-        onApprove={approveAnnouncement}
-        onReject={rejectAnnouncement}
-        onLogout={() => {
-          console.log("Admin logout triggered");
-          setIsAdmin(false);
-          setAppState("homepage");
-          
-          // Clear admin status from user document
-          if (user) {
-            const userRef = doc(db, "users", user.uid);
-            setDoc(
-              userRef,
-              {
-                isAdmin: false,
-                status: "homepage",
-                adminLogoutAt: serverTimestamp(),
-              },
-              { merge: true }
-            ).catch((err) => console.error("Error clearing admin status:", err));
-          }
-        }}
-      />
-      {notification.show && (
-        <NotificationToast
-          message={notification.message}
-          type={notification.type}
-        />
-      )}
-      {confirmDialog.show && (
-        <ConfirmDialog
-          message={confirmDialog.message}
-          onConfirm={confirmDialog.onConfirm}
-          onCancel={hideConfirmDialog}
-        />
-      )}
-      <Analytics />
-    </>
-  );
+      return (
+        <>
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+          <AdminPanel
+            onApprove={approveAnnouncement}
+            onReject={rejectAnnouncement}
+            onLogout={() => {
+              setIsAdmin(false);
+              setAppState("homepage");
+            }}
+          />
+          {notification.show && (
+            <NotificationToast
+              message={notification.message}
+              type={notification.type}
+            />
+          )}
+          {confirmDialog.show && (
+            <ConfirmDialog
+              message={confirmDialog.message}
+              onConfirm={confirmDialog.onConfirm}
+              onCancel={hideConfirmDialog}
+            />
+          )}
+          <Analytics />
+        </>
+      );
     default:
       return (
         <>
@@ -2343,76 +2328,35 @@ const PollModal = ({ onClose, chatId }) => {
 };
 
 // Admin Panel Component
+// Replace the ENTIRE AdminPanel component in App.js with this:
 const AdminPanel = ({ onApprove, onReject, onLogout }) => {
   const [requests, setRequests] = useState([]);
 
   useEffect(() => {
-  const fetchRequests = async () => {
-    try {
-      console.log("Fetching admin requests...");
-      const requestsRef = collection(db, "announcement_requests");
-      
-      // First, try a simple query without ordering to see if there are any docs
-      const simpleQuery = query(requestsRef, where("status", "==", "pending"));
-      const simpleSnapshot = await getDocs(simpleQuery);
-      console.log("Simple query results:", simpleSnapshot.size);
-      
-      // Then try with ordering
-      const q = query(
-        requestsRef,
-        where("status", "==", "pending"),
-        orderBy("createdAt", "desc")
-      );
-      
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        console.log("Query snapshot size:", querySnapshot.size);
-        const reqs = querySnapshot.docs.map((doc) => {
-          const data = doc.data();
-          console.log("Request data:", data);
-          return {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate() || new Date(),
-          };
-        });
-        console.log("Processed requests:", reqs);
-        setRequests(reqs);
-      }, (error) => {
-        console.error("Firestore query error:", error);
-        // Fallback to simple query if ordering fails
-        const fallbackUnsubscribe = onSnapshot(simpleQuery, (querySnapshot) => {
+    const fetchRequests = async () => {
+      try {
+        const requestsRef = collection(db, "announcement_requests");
+        const q = query(
+          requestsRef,
+          where("status", "==", "pending"),
+          orderBy("createdAt", "desc")
+        );
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
           const reqs = querySnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
             createdAt: doc.data().createdAt?.toDate() || new Date(),
           }));
-          setRequests(reqs.sort((a, b) => b.createdAt - a.createdAt));
+          setRequests(reqs);
         });
-        return fallbackUnsubscribe;
-      });
-      
-      return unsubscribe;
-    } catch (error) {
-      console.error("Error setting up requests listener:", error);
-    }
-  };
-
-  fetchRequests();
-}, []);
-
-  const handleLogout = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Add a small delay to prevent touch event issues on mobile
-    setTimeout(() => {
-      const confirmed = window.confirm("Are you sure you want to logout from admin panel?");
-      if (confirmed) {
-        console.log("Logging out from admin panel");
-        onLogout();
+        return unsubscribe;
+      } catch (error) {
+        console.error("Error fetching announcement requests:", error);
       }
-    }, 100);
-  };
+    };
+
+    fetchRequests();
+  }, []);
 
   const formatDate = (date) => {
     return date.toLocaleString("en-US", {
@@ -2430,6 +2374,7 @@ const AdminPanel = ({ onApprove, onReject, onLogout }) => {
         <h2>Admin Panel</h2>
       </div>
 
+      {/* This container is ESSENTIAL for the flexbox layout to work */}
       <div className="admin-content-container">
         <div className="admin-content">
           <h3>Pending Requests ({requests.length})</h3>
@@ -2487,12 +2432,9 @@ const AdminPanel = ({ onApprove, onReject, onLogout }) => {
         </div>
       </div>
 
+      {/* This footer wrapper is also ESSENTIAL for the layout */}
       <div className="admin-footer">
-        <button 
-          onClick={handleLogout} 
-          className="logout-button"
-          type="button"
-        >
+        <button onClick={onLogout} className="logout-button">
           Logout
         </button>
       </div>
