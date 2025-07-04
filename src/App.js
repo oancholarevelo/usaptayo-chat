@@ -561,124 +561,50 @@ export default function App() {
   }, []);
 
   const findChat = async () => {
-    if (!user || !userProfile) {
-      console.error("User or user profile not available for matchmaking.");
-      showNotification("Something went wrong, please try again.", "error");
+    if (!user) {
+      console.error("User not available for debug test.");
+      showNotification("User not ready for test.", "error");
       return;
     }
 
-    console.log("Starting matchmaking for user:", user.uid);
-    setAppState("waiting");
+    console.log("--- STARTING DEBUG TEST ---");
+    setAppState("waiting"); // Go to waiting screen for feedback
 
     try {
-      // Use a transaction to find and match users atomically
-      const result = await runTransaction(db, async (transaction) => {
-        // Step 1: Query the 'waitingPool' collection for a partner
-        const waitingPoolQuery = query(
-          collection(db, "waitingPool"),
-          limit(1)
-        );
-        const waitingDocs = await transaction.get(waitingPoolQuery);
+      await runTransaction(db, async (transaction) => {
+        console.log("Debug: Inside transaction block.");
+        const userRef = doc(db, "users", user.uid);
+        
+        // This is the simplest possible read operation inside a transaction.
+        // We are just trying to read the current user's own document.
+        console.log("Debug: Attempting to read own user document...");
+        const userDoc = await transaction.get(userRef); 
 
-        if (!waitingDocs.empty) {
-          // --- MATCH FOUND ---
-          const partnerDoc = waitingDocs.docs[0];
-
-          // Safeguard: Prevent matching with yourself
-          if (partnerDoc.id === user.uid) {
-            console.log("Found myself in the waiting pool. This is an edge case. Will retry.");
-            transaction.delete(partnerDoc.ref); // Delete the old entry
-            return null;
-          }
-          
-          const partnerProfile = partnerDoc.data();
-          console.log("Partner found:", partnerProfile.displayName);
-
-          // Step 2: Create the new chat document
-          const newChatRef = doc(collection(db, "chats"));
-          transaction.set(newChatRef, {
-            users: [user.uid, partnerProfile.uid],
-            userNames: {
-              [user.uid]: userProfile.displayName,
-              [partnerProfile.uid]: partnerProfile.displayName,
-            },
-            createdAt: serverTimestamp(),
-            status: "active",
-          });
-
-          // Step 3: Update BOTH users' status to 'chatting' in the main 'users' collection
-          const currentUserRef = doc(db, "users", user.uid);
-          transaction.update(currentUserRef, {
-            status: "chatting",
-            currentChatId: newChatRef.id,
-          });
-          
-          const partnerUserRef = doc(db, "users", partnerProfile.uid);
-           transaction.update(partnerUserRef, {
-            status: "chatting",
-            currentChatId: newChatRef.id,
-          });
-
-          // Step 4: Delete the matched partner from the 'waitingPool'
-          transaction.delete(partnerDoc.ref);
-
-          return { chatId: newChatRef.id, partner: partnerProfile };
+        if (userDoc.exists()) {
+          console.log("✅ SUCCESS: Transaction read the document successfully.", userDoc.data());
+          // We can add a simple write to test that too.
+          transaction.update(userRef, { lastTest: serverTimestamp() });
         } else {
-          // --- NO MATCH FOUND ---
-          console.log("No one in waiting pool, adding self.");
-          
-          const waitingRef = doc(db, "waitingPool", user.uid);
-          transaction.set(waitingRef, userProfile);
-          
-          const currentUserRef = doc(db, "users", user.uid);
-          transaction.update(currentUserRef, { status: "waiting" });
-
-          return null; 
+          // This should not happen if the user exists.
+          console.error("❌ ERROR: Transaction ran but could not find the user's own document.");
         }
       });
 
-      // After the transaction completes
-      if (result) {
-        console.log("Match successful, adding connection messages to chat:", result.chatId);
-        const messagesRef = collection(db, "chats", result.chatId, "messages");
+      console.log("--- DEBUG TEST COMPLETED SUCCESSFULLY ---");
+      showNotification("Debug test finished. Check the console for ✅ SUCCESS.", "info");
 
-        const myMessage = {
-          text: `May ka-talking stage ka na: ${result.partner.displayName}! Go na, bestie. 💅`,
-          createdAt: serverTimestamp(),
-          uid: "system",
-          displayName: "System",
-          isSystemMessage: true,
-          type: "connection",
-          visibleTo: user.uid,
-        };
-
-        const partnerMessage = {
-          text: `May ka-talking stage ka na: ${userProfile.displayName}! Go na, bestie. 💅`,
-          createdAt: serverTimestamp(),
-          uid: "system",
-          displayName: "System",
-          isSystemMessage: true,
-          type: "connection",
-          visibleTo: result.partner.uid,
-        };
-
-        await Promise.all([
-          addDoc(messagesRef, myMessage),
-          addDoc(messagesRef, partnerMessage),
-        ]);
-        console.log("Connection messages added successfully.");
-      } else {
-        console.log("No match found, user is now waiting.");
-      }
     } catch (error) {
-      console.error("Matchmaking transaction failed:", error);
-      showNotification("Matchmaking failed. Please try again.", "error");
-
+      console.error("--- DEBUG TEST FAILED ---", error);
+      showNotification("Debug test FAILED. Check the console for ❌ ERROR.", "error");
+    
+    } finally {
+      // Always revert the user back to the matchmaking screen after the test.
+      console.log("Debug: Reverting user status to matchmaking.");
       const userRef = doc(db, "users", user.uid);
       await setDoc(userRef, { status: "matchmaking" }, { merge: true });
     }
   };
-  
+
   const endChat = async () => {
     if (!user || !chatId) return;
 
