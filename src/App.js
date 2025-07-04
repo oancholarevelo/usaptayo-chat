@@ -56,6 +56,7 @@ export default function App() {
   });
   const [announcementModal, setAnnouncementModal] = useState({ show: false });
   const [activeAnnouncement, setActiveAnnouncement] = useState(null);
+  const [pollModal, setPollModal] = useState({ show: false });
   // eslint-disable-next-line no-unused-vars
   const [isAdmin, setIsAdmin] = useState(false);
   const [theme, setTheme] = useState(() => {
@@ -103,6 +104,14 @@ export default function App() {
       showNotification("Invalid admin password!", "error");
     }
   };
+
+  const showPollModal = () => {
+  setPollModal({ show: true });
+};
+
+const hidePollModal = () => {
+  setPollModal({ show: false });
+};
 
   // Secret access methods for admin (works on both desktop and mobile)
   const [tapCount, setTapCount] = useState(0);
@@ -1134,6 +1143,7 @@ export default function App() {
             onSecretTap={handleSecretTap}
             theme={theme}
             toggleTheme={toggleTheme}
+            onShowPollModal={showPollModal}
           />
           {notification.show && (
             <NotificationToast
@@ -1160,6 +1170,13 @@ export default function App() {
               }}
             />
           )}
+          {/* Render the modal */}
+      {pollModal.show && (
+        <PollModal
+          onClose={hidePollModal}
+          chatId={chatId}
+        />
+      )}
           <Analytics />
         </>
       );
@@ -1430,6 +1447,7 @@ const ChatPage = ({
   onSecretTap,
   theme,
   toggleTheme,
+  onShowPollModal,
 }) => (
   <div className="chat-page">
     <Header
@@ -1448,6 +1466,7 @@ const ChatPage = ({
         chatId={chatId}
         onEndChat={onEndChat}
         onShowAnnouncementModal={onShowAnnouncementModal}
+        onShowPollModal={onShowPollModal}
       />
     )}
     {chatEnded && (
@@ -1550,7 +1569,7 @@ const ChatRoom = ({ userProfile, chatId }) => {
       {messages.map((msg) => (
         <ChatMessage
           key={msg.id}
-          message={msg}
+          message={{...msg, chatId: chatId}}
           currentUserUID={userProfile.uid}
         />
       ))}
@@ -1561,10 +1580,14 @@ const ChatRoom = ({ userProfile, chatId }) => {
 };
 
 const ChatMessage = ({ message, currentUserUID }) => {
-  const { text, uid, displayName, isSystemMessage, visibleTo, type } = message;
+  const { text, uid, displayName, isSystemMessage, visibleTo, type, pollData } = message;
 
   // Handle system messages differently
   if (isSystemMessage) {
+    if (type === 'poll' && pollData) {
+      return <VibeCheckPoll message={message} chatId={message.chatId} currentUserUID={currentUserUID} />;
+    }
+
     if (visibleTo && visibleTo !== currentUserUID) {
       return null;
     }
@@ -1598,6 +1621,7 @@ const MessageInput = ({
   chatId,
   onEndChat,
   onShowAnnouncementModal,
+  onShowPollModal,
 }) => {
   const [formValue, setFormValue] = useState("");
   const typingTimeoutRef = useRef(null);
@@ -1676,6 +1700,14 @@ const MessageInput = ({
             strokeLinecap="round"
           />
         </svg>
+      </button>
+      <button
+        type="button"
+        onClick={onShowPollModal}
+        className="vibe-check-button"
+        title="Vibe Check Poll"
+      >
+        📊
       </button>
       <button
         type="button"
@@ -2016,6 +2048,123 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+const VibeCheckPoll = ({ message, chatId, currentUserUID }) => {
+  const { pollData } = message;
+  const [voted, setVoted] = useState(null);
+
+  const handleVote = async (option) => {
+    if (voted) return; // Already voted
+
+    const voteKey = `votes.${option.id}`;
+    const pollRef = doc(db, "chats", chatId, "messages", message.id);
+
+    await runTransaction(db, async (transaction) => {
+      const pollDoc = await transaction.get(pollRef);
+      if (!pollDoc.exists()) {
+        // FIX: Throw a new Error object instead of a string
+        throw new Error("Poll does not exist!");
+      }
+
+      // Get current votes, or initialize if they don't exist
+      const currentVotes = pollDoc.data().pollData.votes || {};
+      const optionVotes = currentVotes[option.id] || [];
+
+      // Add the new voter if they haven't voted for this option
+      if (!optionVotes.includes(currentUserUID)) {
+        const newOptionVotes = [...optionVotes, currentUserUID];
+        transaction.update(pollRef, { [`pollData.${voteKey}`]: newOptionVotes });
+      }
+    });
+
+    setVoted(option.id);
+  };
+
+  const allVotes = Object.values(pollData.votes || {}).flat();
+  const totalVotes = allVotes.length;
+  const userHasVoted = allVotes.includes(currentUserUID);
+
+  return (
+    <div className="system-message poll">
+      <p className="poll-question">{pollData.question}</p>
+      <div className="poll-options">
+        {pollData.options.map((option) => {
+          const optionVotes = pollData.votes?.[option.id] || [];
+          const voteCount = optionVotes.length;
+          const votePercentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
+
+          return (
+            <button
+              key={option.id}
+              onClick={() => handleVote(option)}
+              className={`poll-option ${userHasVoted || voted ? "voted" : ""}`}
+              disabled={userHasVoted}
+            >
+              <div
+                className="poll-option-fill"
+                style={{ width: `${votePercentage}%` }}
+              ></div>
+              <span className="poll-option-text">{option.text}</span>
+              <span className="poll-option-percentage">
+                {Math.round(votePercentage)}%
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+
+const PollModal = ({ onClose, chatId }) => {
+  const pollQuestions = [
+    { id: 'q1', question: 'Vibe for tonight?', options: [{ id: 'o1', text: 'Stay in & chill' }, { id: 'o2', text: 'Go out & party' }] },
+    { id: 'q2', question: 'Ideal first date?', options: [{ id: 'o1', text: 'Coffee shop' }, { id: 'o2', text: 'Dinner & a movie' }] },
+    { id: 'q3', question: 'Music preference?', options: [{ id: 'o1', text: 'OPM' }, { id: 'o2', text: 'International Hits' }] },
+    { id: 'q4', question: 'Dogs or Cats?', options: [{ id: 'o1', text: 'Dogs 🐶' }, { id: 'o2', text: 'Cats 🐱' }] },
+  ];
+
+  const handleSendPoll = async (poll) => {
+    const messagesRef = collection(db, "chats", chatId, "messages");
+    await addDoc(messagesRef, {
+      text: `Vibe Check: ${poll.question}`,
+      createdAt: serverTimestamp(),
+      uid: 'system',
+      displayName: 'System',
+      isSystemMessage: true,
+      type: 'poll',
+      pollData: {
+        question: poll.question,
+        options: poll.options,
+        votes: {},
+      },
+    });
+    onClose();
+  };
+
+  return (
+    <div className="poll-modal-overlay">
+      <div className="poll-modal">
+        <div className="poll-modal-header">
+          <h3>Vibe Check ✨</h3>
+          <button onClick={onClose} className="close-button">×</button>
+        </div>
+        <div className="poll-modal-content">
+          <p>Ask your ka-talking stage a question to check the vibe.</p>
+          <div className="poll-list">
+            {pollQuestions.map((poll) => (
+              <div key={poll.id} className="poll-item">
+                <span>{poll.question}</span>
+                <button onClick={() => handleSendPoll(poll)}>Ask</button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

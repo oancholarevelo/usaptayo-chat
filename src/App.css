@@ -558,6 +558,148 @@ body {
   color: var(--text-primary);
 }
 
+.message-form .vibe-check-button {
+  background-color: #f59e0b; /* A nice yellow/orange color */
+  font-size: 1.2rem;
+}
+
+/* Add to section 5 for the poll message in the chat room */
+.system-message.poll {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  width: 100%;
+  max-width: 90%;
+  border-left: 4px solid var(--accent-primary);
+  text-align: left;
+}
+
+.poll-question {
+  font-weight: bold;
+  font-style: normal;
+  margin-bottom: 1rem;
+}
+
+.poll-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.poll-option {
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.2s;
+}
+
+.poll-option.voted {
+  cursor: not-allowed;
+}
+
+.poll-option:not(.voted):hover {
+  background-color: var(--bg-tertiary);
+}
+
+.poll-option-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background-color: var(--accent-primary);
+  opacity: 0.3;
+  transition: width 0.5s ease;
+  z-index: 0;
+}
+
+.poll-option-text, .poll-option-percentage {
+  position: relative;
+  z-index: 1;
+  color: var(--text-primary);
+}
+
+.poll-option-percentage {
+  float: right;
+  font-weight: bold;
+}
+
+/* Add to section 6 for the poll modal */
+.poll-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.poll-modal {
+  background-color: var(--bg-secondary);
+  border-radius: 1rem;
+  max-width: 500px;
+  width: 100%;
+  border: 1px solid var(--border-color);
+}
+
+.poll-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.poll-modal-header h3 {
+  color: var(--accent-secondary);
+}
+
+.poll-modal-content {
+  padding: 1.5rem;
+}
+
+.poll-modal-content p {
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.poll-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.poll-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+.poll-item button {
+  background-color: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.poll-item button:hover {
+  background-color: var(--accent-hover);
+}
+
 /* ==========================================================================
    6. Modals, Toasts, and Overlays
    ========================================================================== */
