@@ -974,7 +974,7 @@ body {
 }
 
 .system-message p {
-  background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--border-color) 100%);
+  background-color: var(--bg-tertiary);
   color: var(--text-secondary);
   padding: 0.75rem 1.5rem;
   border-radius: 1.5rem;
@@ -984,49 +984,31 @@ body {
   text-align: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border: 1px solid var(--border-color);
-  position: relative;
-  overflow: hidden;
 }
 
-.system-message p::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-secondary), transparent);
-  opacity: 0.3;
-}
+/* Remove the gradient pseudo-element */
+/* .system-message p::before - removed gradient line */
 
 /* Special styling for connection messages */
 .system-message p:contains("connected with") {
-  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  background-color: var(--accent-primary);
   color: #ffffff;
-  border-color: #a78bfa;
+  border-color: var(--accent-secondary);
 }
 
 /* Alternative approach for connection messages using a CSS class */
 .system-message.connection p {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  background-color: var(--accent-primary);
   color: #ffffff;
   border-color: var(--accent-secondary);
   font-weight: 600;
 }
 
-.system-message.connection p::before {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-}
-
 /* Disconnection message styling */
 .system-message.disconnection p {
-  background: linear-gradient(135deg, var(--error-color) 0%, #f87171 100%);
+  background-color: var(--error-color);
   color: #ffffff;
-  border-color: #f87171;
-}
-
-.system-message.disconnection p::before {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  border-color: var(--error-color);
 }
 
 /* Disconnected Notice Styles */
