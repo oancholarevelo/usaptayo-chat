@@ -245,7 +245,7 @@ export default function App() {
                 });
                 
                 await addDoc(messagesRef, {
-                    text: `${userProfile.displayName} connected with you`,
+                    text: `You connected with ${userProfile.displayName}`,
                     createdAt: serverTimestamp(),
                     uid: 'system',
                     photoURL: '',
