@@ -1040,6 +1040,130 @@ body {
   color: white;
 }
 
+/* --- Maintenance Message Styles --- */
+.maintenance-message {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.maintenance-message::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+  animation: shimmer 3s infinite;
+}
+
+.maintenance-message h4 {
+  font-size: 1.5rem;
+  margin: 0 0 1rem 0;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.maintenance-message p {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0 0 0.75rem 0;
+  opacity: 0.95;
+}
+
+.maintenance-subtitle {
+  font-size: 0.9rem !important;
+  font-style: italic;
+  opacity: 0.8 !important;
+  margin-top: 1rem !important;
+}
+
+/* Shimmer animation for the maintenance banner */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Enhanced modal button for maintenance mode */
+.modal-button.primary {
+  background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.modal-button.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.modal-button.primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Dark theme adjustments for maintenance message */
+[data-theme="dark"] .maintenance-message {
+  background: linear-gradient(135deg, var(--accent-hover) 0%, var(--accent-primary) 100%);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.3);
+}
+
+/* Light theme adjustments for maintenance message */
+[data-theme="light"] .maintenance-message {
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2);
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 480px) {
+  .maintenance-message {
+    padding: 1.5rem 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .maintenance-message h4 {
+    font-size: 1.25rem;
+  }
+  
+  .maintenance-message p {
+    font-size: 0.9rem;
+  }
+}
+
+/* Additional enhancement: Pulsing effect for the maintenance icon */
+.maintenance-message h4::before {
+  content: '🚧';
+  display: inline-block;
+  margin-right: 0.5rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
 /* --- Theme Toggle --- */
 .theme-toggle {
   background: var(--bg-tertiary);

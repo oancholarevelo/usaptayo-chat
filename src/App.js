@@ -59,6 +59,8 @@ const shuffle = (array) => {
   return array;
 };
 
+const ANNOUNCEMENT_MAINTENANCE = true;
+
 // --- Main App Component ---
 export default function App() {
   const [user, setUser] = useState(null);
@@ -2064,6 +2066,37 @@ const AnnouncementBanner = ({ announcement }) => {
 const AnnouncementModal = ({ onClose, onSuccess }) => {
   const [message, setMessage] = useState("");
   const [step, setStep] = useState(1); // 1: compose, 2: payment
+
+  // Check if maintenance mode is enabled
+  if (ANNOUNCEMENT_MAINTENANCE) {
+    return (
+      <div className="announcement-modal-overlay">
+        <div className="announcement-modal">
+          <div className="announcement-modal-header">
+            <h3>Announcement Feature 📢</h3>
+            <button onClick={onClose} className="close-button">
+              ×
+            </button>
+          </div>
+          <div className="announcement-modal-content">
+            <div className="maintenance-message">
+              <h4>Under Maintenance</h4>
+              <p>
+                The announcement feature is currently being upgraded to serve you better! 
+                Check back soon for an improved experience. ✨
+              </p>
+              <p className="maintenance-subtitle">
+                Thanks for your patience, bestie! 💜
+              </p>
+            </div>
+            <button onClick={onClose} className="modal-button primary">
+              Got it! 👍
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleNext = () => {
     if (message.trim().length > 0) {
