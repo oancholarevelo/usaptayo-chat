@@ -20,8 +20,9 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { Analytics } from "@vercel/analytics/react";
-import "./App.css";
+import "./App.css"; // Import the CSS file
 
+// --- Firebase Configuration ---
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -32,18 +33,23 @@ const firebaseConfig = {
   measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
+// --- Initialize Firebase ---
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// --- Helper Function to Shuffle Arrays ---
 const shuffle = (array) => {
   let currentIndex = array.length;
   let randomIndex;
 
+  // While there remain elements to shuffle.
   while (currentIndex > 0) {
+    // Pick a remaining element.
     randomIndex = Math.floor(Math.random() * currentIndex);
     currentIndex--;
 
+    // And swap it with the current element.
     [array[currentIndex], array[randomIndex]] = [
       array[randomIndex],
       array[currentIndex],
@@ -55,6 +61,7 @@ const shuffle = (array) => {
 
 const ANNOUNCEMENT_MAINTENANCE = true;
 
+// --- Main App Component ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -64,7 +71,7 @@ export default function App() {
     show: false,
     message: "",
     type: "info",
-  });
+  }); // info, success, error
   const [confirmDialog, setConfirmDialog] = useState({
     show: false,
     message: "",
@@ -76,17 +83,30 @@ export default function App() {
   // eslint-disable-next-line no-unused-vars
   const [isAdmin, setIsAdmin] = useState(false);
   const [theme, setTheme] = useState(() => {
+    // Get theme from localStorage or default to 'dark'
     return localStorage.getItem("usaptayo-theme") || "dark";
   });
 
+  // Admin access function - triggered by secret keyboard shortcut
   const checkAdminAccess = () => {
     const adminPassword = prompt("Enter admin password:");
 
     if (adminPassword === "TP9K9p!g4Fq$M-F") {
+      console.log("Admin password verified, attempting state change...");
+
+      // First set isAdmin flag to true
       setIsAdmin(true);
-      setAppState("admin");
+
+      // Then change app state - using a callback to ensure it's based on the latest state
+      setAppState(() => {
+        console.log("Setting app state to admin");
+        return "admin";
+      });
+
+      // Show success notification
       showNotification("Admin access granted! ✨", "success");
 
+      // Update user document to mark as admin (this helps prevent overrides)
       if (user) {
         const userRef = doc(db, "users", user.uid);
         setDoc(
@@ -97,7 +117,11 @@ export default function App() {
             status: "admin",
           },
           { merge: true }
-        ).catch((err) => console.error("Failed to update user document:", err));
+        )
+          .then(() => console.log("User document updated with admin status"))
+          .catch((err) =>
+            console.error("Failed to update user document:", err)
+          );
       }
     } else {
       showNotification("Invalid admin password!", "error");
@@ -112,6 +136,7 @@ export default function App() {
     setPollModal({ show: false });
   };
 
+  // Secret access methods for admin (works on both desktop and mobile)
   const [tapCount, setTapCount] = useState(0);
   const [tapTimer, setTapTimer] = useState(null);
 
@@ -122,17 +147,20 @@ export default function App() {
     setTapCount(newCount);
 
     if (newCount >= 7) {
+      // 7 taps triggers admin access
       setTapCount(0);
       checkAdminAccess();
       return;
     }
 
+    // Reset counter after 3 seconds of no taps
     const timer = setTimeout(() => {
       setTapCount(0);
     }, 3000);
     setTapTimer(timer);
   };
 
+  // Desktop keyboard shortcut (Ctrl+Shift+A)
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "a") {
@@ -147,15 +175,19 @@ export default function App() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cleanup tap timer on unmount
   useEffect(() => {
     return () => {
       if (tapTimer) clearTimeout(tapTimer);
     };
   }, [tapTimer]);
 
+  // Function to approve announcement
   const approveAnnouncement = async (requestId, requestData) => {
     try {
       const batch = writeBatch(db);
+
+      // Create the active announcement
       const announcementRef = doc(collection(db, "announcements"));
       const expirationTime = new Date();
       expirationTime.setMinutes(
@@ -170,6 +202,7 @@ export default function App() {
         originalRequestId: requestId,
       });
 
+      // Update the request status
       const requestRef = doc(db, "announcement_requests", requestId);
       batch.update(requestRef, {
         status: "approved",
@@ -185,6 +218,7 @@ export default function App() {
     }
   };
 
+  // Function to reject announcement
   const rejectAnnouncement = async (requestId, reason) => {
     try {
       const requestRef = doc(db, "announcement_requests", requestId);
@@ -202,6 +236,7 @@ export default function App() {
     }
   };
 
+  // Theme toggle function
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
@@ -209,10 +244,12 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", newTheme);
   };
 
+  // Set theme on component mount
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
+  // Helper functions for notifications
   const showNotification = (message, type = "info") => {
     setNotification({ show: true, message, type });
     setTimeout(
@@ -237,6 +274,7 @@ export default function App() {
     setAnnouncementModal({ show: false });
   };
 
+  // Check for active announcements on app load - IMPROVED EXPIRATION HANDLING
   useEffect(() => {
     const checkActiveAnnouncement = async () => {
       try {
@@ -252,11 +290,15 @@ export default function App() {
             const announcement = querySnapshot.docs[0].data();
             const announcementId = querySnapshot.docs[0].id;
 
+            // Real-time expiration check
             const now = new Date();
             const expiresAt = announcement.expiresAt.toDate();
 
             if (expiresAt <= now) {
+              // Immediately remove expired announcement from UI
               setActiveAnnouncement(null);
+
+              // Mark as expired in database
               try {
                 await updateDoc(doc(db, "announcements", announcementId), {
                   status: "expired",
@@ -266,6 +308,7 @@ export default function App() {
                 console.error("Error marking announcement as expired:", error);
               }
             } else {
+              // Set up real-time expiration timer
               const timeUntilExpiry = expiresAt - now;
               setTimeout(() => {
                 setActiveAnnouncement(null);
@@ -289,43 +332,53 @@ export default function App() {
     checkActiveAnnouncement();
   }, []);
 
+  // Effect for handling auth and user profile state
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         await signInAnonymously(auth);
       } catch (error) {
         console.error("Anonymous sign-in failed:", error);
-        setAppState("homepage");
+        setAppState("homepage"); // Default to homepage on error
       }
     };
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+
+        // Check for a stored chat session
         const storedChatId = sessionStorage.getItem("usaptayo-chatId");
 
         if (storedChatId) {
+          // A chat ID was found, let's try to restore the session.
           const chatRef = doc(db, "chats", storedChatId);
           const chatSnap = await getDoc(chatRef);
 
+          // Check if the chat still exists and is active in Firestore
           if (chatSnap.exists() && chatSnap.data().status === "active") {
             const userRef = doc(db, "users", currentUser.uid);
             const userSnap = await getDoc(userRef);
 
             if (userSnap.exists()) {
+              console.log("Restoring active chat session:", storedChatId);
               setUserProfile(userSnap.data());
               setChatId(storedChatId);
-              setAppState("chatting");
-              return;
+              setAppState("chatting"); // Go directly to the chat
+              return; // Exit to prevent falling through to homepage
             }
           }
+          // If the chat is no longer active, remove the old ID
           sessionStorage.removeItem("usaptayo-chatId");
         }
 
+        // --- Fallback Logic ---
+        // If no active chat session is found, start at the homepage.
         setAppState("homepage");
         setUserProfile(null);
         setChatId(null);
       } else {
+        // Not signed in
         setUser(null);
         setUserProfile(null);
         setAppState("loading");
@@ -338,15 +391,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // If user is chatting and we have a chatId, save it.
     if (appState === "chatting" && chatId) {
       sessionStorage.setItem("usaptayo-chatId", chatId);
     }
 
+    // If the user is no longer chatting (e.g., they ended the chat),
+    // remove the ID so they don't get put back into an old chat on refresh.
     if (appState !== "chatting") {
       sessionStorage.removeItem("usaptayo-chatId");
     }
   }, [appState, chatId]);
 
+  // Effect for listening to user status changes - fix the undefined status issue
   useEffect(() => {
     if (!user) return;
 
@@ -356,14 +413,26 @@ export default function App() {
       (doc) => {
         if (doc.exists()) {
           const data = doc.data();
+          console.log(
+            "User status update:",
+            data.status,
+            "for user:",
+            user.uid
+          );
 
+          // Only update user profile if it has valid data
           if (data && Object.keys(data).length > 0) {
             setUserProfile(data);
 
+            // Don't override admin state when listening to user status changes
             if (isAdmin && appState === "admin") {
+              console.log(
+                "Preserving admin state, ignoring user status update"
+              );
               return;
             }
 
+            // Only process status changes if status is defined and valid
             if (data.status) {
               const validStatuses = [
                 "homepage",
@@ -377,34 +446,51 @@ export default function App() {
 
               const newStatus = validStatuses.includes(data.status)
                 ? data.status
-                : "homepage";
+                : "homepage"; // Default to homepage for invalid/undefined status
 
+              // Only update app state if it's actually different
               if (newStatus !== appState) {
+                console.log(
+                  "Changing app state from",
+                  appState,
+                  "to",
+                  newStatus
+                );
                 setAppState(newStatus);
               }
 
+              // Handle chat ID updates
               if (
                 (data.status === "chatting" || data.status === "chat_ended") &&
                 data.currentChatId
               ) {
                 if (chatId !== data.currentChatId) {
+                  console.log("Setting chat ID to:", data.currentChatId);
                   setChatId(data.currentChatId);
                 }
               } else if (data.status === "matchmaking" && chatId) {
+                // Clear chat ID when going back to matchmaking
                 setChatId(null);
               }
             } else {
+              // If status is undefined, set to homepage
+              console.log("User has undefined status, defaulting to homepage");
               setAppState("homepage");
             }
           } else {
+            // Empty profile should default to homepage
+            console.log("Empty user profile, defaulting to homepage");
             setAppState("homepage");
           }
         } else {
+          // Document doesn't exist, default to homepage
+          console.log("User document doesn't exist, defaulting to homepage");
           setAppState("homepage");
         }
       },
       (error) => {
         console.error("User status listener error:", error);
+        // On error, default to homepage
         setAppState("homepage");
       }
     );
@@ -414,15 +500,21 @@ export default function App() {
 
   const handleHomepageAccept = async () => {
     if (user) {
+      // Update user document in Firestore first
       try {
         const userRef = doc(db, "users", user.uid);
         await setDoc(userRef, { status: "nickname" }, { merge: true });
+        console.log("User status updated to nickname in Firestore");
+
+        // Then update local state
         setAppState("nickname");
       } catch (error) {
         console.error("Error updating user status:", error);
+        // Still update local state even if Firestore update fails
         setAppState("nickname");
       }
     } else {
+      // If no user yet, just update local state
       setAppState("nickname");
     }
   };
@@ -436,7 +528,7 @@ export default function App() {
         .charAt(0)
         .toUpperCase()}`,
       createdAt: serverTimestamp(),
-      status: "matchmaking",
+      status: "matchmaking", // Initial status
       currentChatId: null,
     };
     await setDoc(doc(db, "users", user.uid), newUserProfile);
@@ -451,9 +543,11 @@ export default function App() {
       "Are you sure you want to reset and start over? This will clear your profile.",
       async () => {
         try {
+          // Delete user profile from Firebase
           const userRef = doc(db, "users", user.uid);
-          await setDoc(userRef, {}, { merge: false });
+          await setDoc(userRef, {}, { merge: false }); // Clear the document
 
+          // Reset local state
           setUserProfile(null);
           setAppState("homepage");
           setChatId(null);
@@ -468,6 +562,7 @@ export default function App() {
           );
           hideConfirmDialog();
 
+          // Still navigate to homepage even if reset fails
           setUserProfile(null);
           setAppState("homepage");
           setChatId(null);
@@ -476,18 +571,24 @@ export default function App() {
     );
   };
 
+  // Add this at the top of your App component
   useEffect(() => {
+    // Force a complete reset on each page load by setting a page load timestamp
     const currentLoadTime = Date.now();
     const lastLoadTime = parseInt(
       localStorage.getItem("usaptayo-page-loaded") || "0"
     );
 
+    // If returning within 3 seconds, it's likely a refresh/navigation
+    // If more than 3 seconds, it's likely a new visit
     if (currentLoadTime - lastLoadTime > 3000) {
+      console.log("New page visit detected - resetting to homepage");
       localStorage.setItem("usaptayo-force-homepage", "true");
     }
 
     localStorage.setItem("usaptayo-page-loaded", currentLoadTime.toString());
 
+    // Check if we need to force homepage
     const forceHomepage = localStorage.getItem("usaptayo-force-homepage");
     if (forceHomepage) {
       localStorage.removeItem("usaptayo-force-homepage");
@@ -498,24 +599,31 @@ export default function App() {
   const findChat = async () => {
     if (!user || !userProfile) return;
 
+    // Instantly update the UI to show a "searching" state.
+    // The database status is not yet 'waiting'.
     setAppState("waiting");
 
+    // First, find potential partners. This read is not part of the transaction.
     const waitingUsersQuery = query(
       collection(db, "users"),
       where("status", "==", "waiting"),
       where("uid", "!=", user.uid),
-      limit(10)
+      limit(10) // Get a batch of candidates
     );
 
     const waitingUsersSnap = await getDocs(waitingUsersQuery);
 
+    // --- Scenario 1: Other users ARE waiting ---
     if (!waitingUsersSnap.empty) {
+      console.log("Found other waiting users. Attempting to match...");
+      // If partners are found, try to match with one inside a transaction.
       try {
         const result = await runTransaction(db, async (transaction) => {
           const shuffledDocs = shuffle(waitingUsersSnap.docs);
 
           for (const partnerDoc of shuffledDocs) {
             const partnerRef = partnerDoc.ref;
+            // Atomically re-check the partner's status to ensure they are still waiting.
             const currentPartnerSnap = await transaction.get(partnerRef);
 
             if (
@@ -523,6 +631,11 @@ export default function App() {
               currentPartnerSnap.data().status === "waiting"
             ) {
               const partner = currentPartnerSnap.data();
+              console.log(
+                "Found available partner, creating match:",
+                partner.uid
+              );
+
               const newChatRef = doc(collection(db, "chats"));
               transaction.set(newChatRef, {
                 users: [user.uid, partner.uid],
@@ -530,6 +643,8 @@ export default function App() {
                 status: "active",
               });
 
+              // Atomically update both users to 'chatting'.
+              // The current user was never 'waiting' in the DB, which prevents the race condition.
               transaction.update(doc(db, "users", user.uid), {
                 status: "chatting",
                 currentChatId: newChatRef.id,
@@ -541,13 +656,15 @@ export default function App() {
                 matchedWith: user.uid,
               });
 
-              return { chatId: newChatRef.id, partner };
+              return { chatId: newChatRef.id, partner }; // Success
             }
           }
-          return null;
+          return null; // All candidates were taken by others.
         });
 
         if (result) {
+          // The rest of your success logic...
+          console.log("Match successful, adding connection messages");
           const messagesRef = collection(
             db,
             "chats",
@@ -570,7 +687,12 @@ export default function App() {
             type: "connection",
             visibleTo: result.partner.uid,
           });
-          return;
+          return; // Exit function after successful match.
+        } else {
+          console.log(
+            "All potential partners were matched by others. You will now wait."
+          );
+          // Fall through to Scenario 2 if all candidates were taken.
         }
       } catch (error) {
         console.error("Matchmaking transaction failed:", error);
@@ -584,16 +706,20 @@ export default function App() {
           { status: "matchmaking" },
           { merge: true }
         );
-        return;
+        return; // Exit on error
       }
     }
 
+    // --- Scenario 2: NO users are waiting (or all were taken) ---
+    // If we reach this point, we need to set our own status to 'waiting'.
+    console.log("No one is waiting. You are now in the waiting pool.");
     const userRef = doc(db, "users", user.uid);
     await setDoc(
       userRef,
       { status: "waiting", waitingStarted: serverTimestamp() },
       { merge: true }
     );
+    // The UI is already showing 'waiting', so no state change is needed here.
   };
 
   const endChat = async () => {
@@ -606,6 +732,7 @@ export default function App() {
       const batch = writeBatch(db);
       const usersInChat = chatSnap.data().users;
 
+      // Add a disconnection message to the chat
       const messagesRef = collection(db, "chats", chatId, "messages");
       await addDoc(messagesRef, {
         text: `Plot twist: ${userProfile.displayName} ghosted. 👻`,
@@ -617,17 +744,21 @@ export default function App() {
         type: "disconnection",
       });
 
+      // Update chat status to ended
       batch.update(chatRef, {
         status: "ended",
         endedAt: serverTimestamp(),
         endedBy: user.uid,
       });
 
+      // Update user statuses - only the one who ended goes back to matchmaking
       usersInChat.forEach((uid) => {
         const userRef = doc(db, "users", uid);
         if (uid === user.uid) {
+          // User who ended the chat goes back to matchmaking
           batch.update(userRef, { status: "matchmaking", currentChatId: null });
         } else {
+          // Other user stays in chat but with ended status
           batch.update(userRef, {
             status: "chat_ended",
             currentChatId: chatId,
@@ -644,6 +775,7 @@ export default function App() {
   const leaveEndedChat = async () => {
     if (!user) return;
 
+    // Clear the user's current chat and go back to matchmaking
     const userRef = doc(db, "users", user.uid);
     await setDoc(
       userRef,
@@ -655,6 +787,7 @@ export default function App() {
     setAppState("matchmaking");
   };
 
+  // Effect for handling tab visibility and cleanup - IMPROVED TO PREVENT DISCONNECTIONS
   useEffect(() => {
     let cleanupTimeout;
     let sessionTimeout;
@@ -663,14 +796,17 @@ export default function App() {
       const currentTime = Date.now();
 
       if (document.visibilityState === "hidden" && user && userProfile) {
+        // Update last seen time
         localStorage.setItem("usaptayo-last-session", currentTime.toString());
 
+        // Only cleanup for non-critical states and only after much longer delay
         if (
           appState === "matchmaking" ||
           appState === "nickname" ||
           appState === "homepage"
         ) {
           cleanupTimeout = setTimeout(async () => {
+            // Very conservative cleanup - only if still hidden and in same state
             if (
               document.visibilityState === "hidden" &&
               (appState === "matchmaking" ||
@@ -681,6 +817,7 @@ export default function App() {
             ) {
               try {
                 const userRef = doc(db, "users", user.uid);
+                // Only update timestamp, don't change status
                 await setDoc(
                   userRef,
                   {
@@ -692,13 +829,16 @@ export default function App() {
                 console.error("Error updating last seen:", error);
               }
             }
-          }, 600000);
+          }, 600000); // 10 minutes - much longer delay
         }
 
+        // Set session timeout for inactive tabs
         sessionTimeout = setTimeout(() => {
+          // Mark session as expired after 30 minutes of inactivity
           localStorage.setItem("usaptayo-session-expired", "true");
-        }, 1800000);
+        }, 1800000); // 30 minutes
       } else if (document.visibilityState === "visible") {
+        // Cancel any pending cleanup
         if (cleanupTimeout) {
           clearTimeout(cleanupTimeout);
           cleanupTimeout = null;
@@ -708,13 +848,16 @@ export default function App() {
           sessionTimeout = null;
         }
 
+        // Check if session expired while away
         const sessionExpired = localStorage.getItem("usaptayo-session-expired");
         if (sessionExpired) {
           localStorage.removeItem("usaptayo-session-expired");
+          // Force refresh to homepage
           window.location.reload();
           return;
         }
 
+        // Update heartbeat and session time when user returns
         localStorage.setItem("usaptayo-last-session", currentTime.toString());
 
         if (user && userProfile) {
@@ -736,18 +879,20 @@ export default function App() {
     };
 
     const handleBeforeUnload = async () => {
+      // Mark session as ended when closing tab/browser
       localStorage.setItem("usaptayo-session-ended", Date.now().toString());
       sessionStorage.clear();
 
       if (user && userProfile) {
         try {
           const userRef = doc(db, "users", user.uid);
+          // Clear user status when leaving
           await setDoc(
             userRef,
             {
               isActive: false,
               lastSeen: serverTimestamp(),
-              status: "offline",
+              status: "offline", // Mark as offline
             },
             { merge: true }
           );
@@ -758,7 +903,9 @@ export default function App() {
     };
 
     const handlePageShow = (event) => {
+      // Handle when page is restored from cache (back/forward navigation)
       if (event.persisted) {
+        // Page was loaded from cache, force refresh for clean state
         window.location.reload();
       }
     };
@@ -782,16 +929,20 @@ export default function App() {
     };
   }, [user, userProfile, appState]);
 
+  // Effect to handle waiting timeout - IMPROVED FOR MULTI-USER
   useEffect(() => {
     let timeoutTimer;
 
     if (appState === "waiting" && user) {
+      // Longer timeout for better user experience
       timeoutTimer = setTimeout(async () => {
         try {
           const userRef = doc(db, "users", user.uid);
           const userDoc = await getDoc(userRef);
 
+          // Only timeout if still in waiting state
           if (userDoc.exists() && userDoc.data().status === "waiting") {
+            console.log("Waiting timeout for user:", user.uid);
             await setDoc(
               userRef,
               {
@@ -809,7 +960,7 @@ export default function App() {
         } catch (error) {
           console.error("Timeout cleanup failed:", error);
         }
-      }, 180000);
+      }, 180000); // 3 minutes timeout
     }
 
     return () => {
@@ -819,6 +970,7 @@ export default function App() {
     };
   }, [appState, user]);
 
+  // Enhanced heartbeat system for better connection management
   useEffect(() => {
     let heartbeatInterval;
 
@@ -827,6 +979,7 @@ export default function App() {
       userProfile &&
       (appState === "chatting" || appState === "waiting")
     ) {
+      // More frequent heartbeat during critical states
       heartbeatInterval = setInterval(async () => {
         try {
           const userRef = doc(db, "users", user.uid);
@@ -842,7 +995,7 @@ export default function App() {
         } catch (error) {
           console.error("Heartbeat failed:", error);
         }
-      }, 15000);
+      }, 15000); // Every 15 seconds for active states
     }
 
     return () => {
@@ -1010,6 +1163,7 @@ export default function App() {
               }}
             />
           )}
+          {/* Render the modal */}
           {pollModal.show && (
             <PollModal onClose={hidePollModal} chatId={chatId} />
           )}
@@ -1124,6 +1278,8 @@ export default function App() {
   }
 }
 
+// --- UI Components ---
+
 const Homepage = ({ onAccept, onSecretTap }) => {
   const [isOver18, setIsOver18] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -1232,6 +1388,7 @@ const LoadingScreen = ({ text, onSecretTap }) => (
         <span></span>
         <span></span>
       </div>
+      {/* Updated Text Below */}
       {text === "Loading..." && <p>Prepping the vibes... ✨</p>}
       {text === "Manifesting your person... 💫✨" && (
         <p>Manifesting your ka-usap... 💫✨</p>
@@ -1255,6 +1412,7 @@ const NicknamePrompt = ({ onProfileCreate, onSecretTap }) => {
         >
           UsapTayo
         </h1>
+        {/* Updated Text Below */}
         <p>What's your main character name, beh? ✨</p>
         <form onSubmit={handleSubmit}>
           <input
@@ -1282,6 +1440,7 @@ const MatchmakingScreen = ({ onFindChat, onReset, onSecretTap }) => {
         >
           UsapTayo
         </h1>
+        {/* Updated Text Below */}
         <p>Ready ka na ba sa situationship? 😉</p>
         <button onClick={onFindChat}>Find Your 'Ka-Talking Stage' 💫</button>
         <button onClick={onReset} className="reset-profile-button">
@@ -1337,6 +1496,7 @@ const ChatPage = ({
 
 const TypingIndicator = () => (
   <div className="message-container received">
+    {/* The extra wrapper is removed to align it correctly */}
     <div className="message-bubble received">
       <div className="typing-indicator">
         <span></span>
@@ -1363,6 +1523,7 @@ const ChatRoom = ({ userProfile, chatId }) => {
   const dummy = useRef();
   const chatRoomRef = useRef();
 
+  //UNCHANGED: Fetch messages
   useEffect(() => {
     if (!chatId) return;
     const messagesRef = collection(db, "chats", chatId, "messages");
@@ -1377,6 +1538,7 @@ const ChatRoom = ({ userProfile, chatId }) => {
     return unsubscribe;
   }, [chatId]);
 
+  // UNCHANGED: Partner typing status
   useEffect(() => {
     if (!chatId || !userProfile) return;
     let partnerUnsubscribe = () => {};
@@ -1403,6 +1565,7 @@ const ChatRoom = ({ userProfile, chatId }) => {
     return () => partnerUnsubscribe();
   }, [chatId, userProfile]);
 
+  // UNCHANGED: Scroll to bottom
   useEffect(() => {
     const scrollToBottom = () => {
       if (dummy.current) {
@@ -1413,24 +1576,28 @@ const ChatRoom = ({ userProfile, chatId }) => {
     return () => clearTimeout(timeoutId);
   }, [messages, partnerIsTyping]);
 
+  // === NEWLY ADDED EFFECT FOR CLOSING THE PICKER ===
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // If the click is not on a message bubble or its children, close the picker
       if (!event.target.closest('.message-bubble-wrapper')) {
         setActivePickerId(null);
       }
     };
 
+    // Use the chat room's ref to add the event listener
     const chatRoomElement = chatRoomRef.current;
     if (chatRoomElement) {
       chatRoomElement.addEventListener('mousedown', handleClickOutside);
     }
 
+    // Cleanup function to remove the listener when the component unmounts
     return () => {
       if (chatRoomElement) {
         chatRoomElement.removeEventListener('mousedown', handleClickOutside);
       }
     };
-  }, [setActivePickerId]);
+  }, [setActivePickerId]); // Re-run effect if the setter function changes
 
   return (
     <main className="chat-room" ref={chatRoomRef}>
@@ -1471,6 +1638,7 @@ const ChatMessage = ({ message, currentUserUID, showPicker, setActivePickerId, i
 
   const availableReactions = ["👍", "❤️", "😆", "😮", "☹️", "🥹"];
 
+  // System message handling remains the same
   if (isSystemMessage) {
     if (type === "poll" && pollData) {
       return (
@@ -1532,9 +1700,12 @@ const ChatMessage = ({ message, currentUserUID, showPicker, setActivePickerId, i
     <div className={`message-container ${messageClass} ${consecutiveClass}`}>
       <div className={`message-bubble-wrapper`}>
         
+        {/* === CHANGE IS HERE === */}
+        {/* The display name is now OUTSIDE the message bubble div */}
         {!isConsecutive && <p className="display-name">{displayName || "Anonymous"}</p>}
         
         <div className={`message-bubble ${messageClass}`} onClick={handleBubbleClick}>
+          {/* The name is no longer inside this div */}
           <p>{text}</p>
         </div>
         
@@ -1581,25 +1752,31 @@ const MessageInput = ({
   const [formValue, setFormValue] = useState("");
   const typingTimeoutRef = useRef(null);
 
+  // Effect to handle typing status
   useEffect(() => {
     if (!userProfile || !chatId) return;
 
     const userRef = doc(db, "users", userProfile.uid);
 
+    // Clear previous timeout if user keeps typing
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
 
     if (formValue) {
+      // User is typing, update status immediately
       updateDoc(userRef, { isTyping: true, typingInChat: chatId });
 
+      // Set a timeout to mark user as not typing after they stop
       typingTimeoutRef.current = setTimeout(() => {
         updateDoc(userRef, { isTyping: false, typingInChat: null });
-      }, 2000);
+      }, 2000); // 2-second delay
     } else {
+      // Input is empty, mark as not typing
       updateDoc(userRef, { isTyping: false, typingInChat: null });
     }
 
+    // Cleanup on unmount
     return () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -1612,6 +1789,7 @@ const MessageInput = ({
     if (!formValue.trim() || !chatId) return;
     const { uid, photoURL, displayName } = userProfile;
 
+    // Clear the typing indicator immediately on send
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     const userRef = doc(db, "users", userProfile.uid);
     updateDoc(userRef, { isTyping: false, typingInChat: null });
@@ -1689,6 +1867,7 @@ const MessageInput = ({
   );
 };
 
+// Notification Toast Component
 const NotificationToast = ({ message, type }) => (
   <div className={`notification-toast ${type}`}>
     <div className="notification-content">
@@ -1702,6 +1881,7 @@ const NotificationToast = ({ message, type }) => (
   </div>
 );
 
+// Confirmation Dialog Component
 const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
   <div className="confirm-dialog-overlay">
     <div className="confirm-dialog">
@@ -1721,6 +1901,8 @@ const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
   </div>
 );
 
+// Theme Toggle Component
+// Theme Toggle Component
 const ThemeToggle = ({ theme, toggleTheme }) => (
   <button
     className="theme-toggle"
@@ -1824,6 +2006,7 @@ const ThemeToggle = ({ theme, toggleTheme }) => (
   </button>
 );
 
+// Chat Ended Actions Component
 const ChatEndedActions = ({ onNextStranger, onBackHome }) => (
   <div className="chat-ended-actions">
     <button onClick={onNextStranger} className="next-stranger-button">
@@ -1835,6 +2018,7 @@ const ChatEndedActions = ({ onNextStranger, onBackHome }) => (
   </div>
 );
 
+// Announcement Banner Component - IMPROVED EXPIRATION HANDLING
 const AnnouncementBanner = ({ announcement }) => {
   const [timeLeft, setTimeLeft] = useState("");
   const [isExpired, setIsExpired] = useState(false);
@@ -1863,6 +2047,7 @@ const AnnouncementBanner = ({ announcement }) => {
     return () => clearInterval(interval);
   }, [announcement]);
 
+  // Don't render if expired or no announcement
   if (isExpired || !announcement) {
     return null;
   }
@@ -1877,10 +2062,12 @@ const AnnouncementBanner = ({ announcement }) => {
   );
 };
 
+// Announcement Modal Component
 const AnnouncementModal = ({ onClose, onSuccess }) => {
   const [message, setMessage] = useState("");
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(1); // 1: compose, 2: payment
 
+  // Check if maintenance mode is enabled
   if (ANNOUNCEMENT_MAINTENANCE) {
     return (
       <div className="announcement-modal-overlay">
@@ -2029,7 +2216,7 @@ const VibeCheckPoll = ({ message, chatId, currentUserUID }) => {
   const [voted, setVoted] = useState(null);
 
   const handleVote = async (option) => {
-    if (voted) return;
+    if (voted) return; // Already voted
 
     const voteKey = `votes.${option.id}`;
     const pollRef = doc(db, "chats", chatId, "messages", message.id);
@@ -2037,12 +2224,15 @@ const VibeCheckPoll = ({ message, chatId, currentUserUID }) => {
     await runTransaction(db, async (transaction) => {
       const pollDoc = await transaction.get(pollRef);
       if (!pollDoc.exists()) {
+        // FIX: Throw a new Error object instead of a string
         throw new Error("Poll does not exist!");
       }
 
+      // Get current votes, or initialize if they don't exist
       const currentVotes = pollDoc.data().pollData.votes || {};
       const optionVotes = currentVotes[option.id] || [];
 
+      // Add the new voter if they haven't voted for this option
       if (!optionVotes.includes(currentUserUID)) {
         const newOptionVotes = [...optionVotes, currentUserUID];
         transaction.update(pollRef, {
@@ -2170,6 +2360,8 @@ const PollModal = ({ onClose, chatId }) => {
   );
 };
 
+// Admin Panel Component
+// Replace the ENTIRE AdminPanel component in App.js with this:
 const AdminPanel = ({ onApprove, onReject, onLogout }) => {
   const [requests, setRequests] = useState([]);
 
@@ -2215,6 +2407,7 @@ const AdminPanel = ({ onApprove, onReject, onLogout }) => {
         <h2>Admin Panel</h2>
       </div>
 
+      {/* This container is ESSENTIAL for the flexbox layout to work */}
       <div className="admin-content-container">
         <div className="admin-content">
           <h3>Pending Requests ({requests.length})</h3>
@@ -2272,6 +2465,7 @@ const AdminPanel = ({ onApprove, onReject, onLogout }) => {
         </div>
       </div>
 
+      {/* This footer wrapper is also ESSENTIAL for the layout */}
       <div className="admin-footer">
         <button onClick={onLogout} className="logout-button">
           Logout
