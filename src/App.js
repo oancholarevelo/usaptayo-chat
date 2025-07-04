@@ -352,7 +352,7 @@ export default function App() {
           // A chat ID was found, let's try to restore the session.
           const chatRef = doc(db, "chats", storedChatId);
           const chatSnap = await getDoc(chatRef);
-          
+
           // Check if the chat still exists and is active in Firestore
           if (chatSnap.exists() && chatSnap.data().status === "active") {
             const userRef = doc(db, "users", currentUser.uid);
@@ -375,7 +375,6 @@ export default function App() {
         setAppState("homepage");
         setUserProfile(null);
         setChatId(null);
-
       } else {
         // Not signed in
         setUser(null);
@@ -383,22 +382,22 @@ export default function App() {
         setAppState("loading");
       }
     });
-    
+
     initializeAuth();
 
     return () => unsubscribe();
-  }, [])
+  }, []);
 
   useEffect(() => {
     // If user is chatting and we have a chatId, save it.
-    if (appState === 'chatting' && chatId) {
-      sessionStorage.setItem('usaptayo-chatId', chatId);
+    if (appState === "chatting" && chatId) {
+      sessionStorage.setItem("usaptayo-chatId", chatId);
     }
-    
+
     // If the user is no longer chatting (e.g., they ended the chat),
     // remove the ID so they don't get put back into an old chat on refresh.
-    if (appState !== 'chatting') {
-      sessionStorage.removeItem('usaptayo-chatId');
+    if (appState !== "chatting") {
+      sessionStorage.removeItem("usaptayo-chatId");
     }
   }, [appState, chatId]);
 
@@ -598,11 +597,8 @@ export default function App() {
   const findChat = async () => {
     if (!user || !userProfile) return;
 
-    // Set user's status to 'waiting' in the database so they can be found by others.
-    const userRef = doc(db, "users", user.uid);
-    await setDoc(userRef, { status: "waiting", waitingStarted: serverTimestamp() }, { merge: true });
-
-    // Instantly update the UI to show the waiting screen.
+    // Instantly update the UI to show a "searching" state.
+    // The database status is not yet 'waiting'.
     setAppState("waiting");
 
     // First, find potential partners. This read is not part of the transaction.
@@ -615,55 +611,65 @@ export default function App() {
 
     const waitingUsersSnap = await getDocs(waitingUsersQuery);
 
-    if (waitingUsersSnap.empty) {
-      console.log("No one is waiting. You are now in the waiting pool.");
-      // If no one is found, the user simply waits. The UI is already showing 'waiting'.
-      return;
-    }
+    // --- Scenario 1: Other users ARE waiting ---
+    if (!waitingUsersSnap.empty) {
+      console.log("Found other waiting users. Attempting to match...");
+      // If partners are found, try to match with one inside a transaction.
+      try {
+        const result = await runTransaction(db, async (transaction) => {
+          const shuffledDocs = shuffle(waitingUsersSnap.docs);
 
-    // If partners are found, try to match with one inside a transaction.
-    try {
-      const result = await runTransaction(db, async (transaction) => {
-        // Shuffle the candidates to reduce contention on the same user.
-        const shuffledDocs = shuffle(waitingUsersSnap.docs);
+          for (const partnerDoc of shuffledDocs) {
+            const partnerRef = partnerDoc.ref;
+            // Atomically re-check the partner's status to ensure they are still waiting.
+            const currentPartnerSnap = await transaction.get(partnerRef);
 
-        for (const partnerDoc of shuffledDocs) {
-          const partnerRef = partnerDoc.ref;
-          
-          // Use the transactional 'get' on the specific partnerRef to ensure they are still waiting.
-          const currentPartnerSnap = await transaction.get(partnerRef);
+            if (
+              currentPartnerSnap.exists() &&
+              currentPartnerSnap.data().status === "waiting"
+            ) {
+              const partner = currentPartnerSnap.data();
+              console.log(
+                "Found available partner, creating match:",
+                partner.uid
+              );
 
-          if (currentPartnerSnap.exists() && currentPartnerSnap.data().status === "waiting") {
-            // --- MATCH FOUND ---
-            const partner = currentPartnerSnap.data();
-            console.log("Found available partner, creating match:", partner.uid);
+              const newChatRef = doc(collection(db, "chats"));
+              transaction.set(newChatRef, {
+                users: [user.uid, partner.uid],
+                createdAt: serverTimestamp(),
+                status: "active",
+              });
 
-            const newChatRef = doc(collection(db, "chats"));
-            transaction.set(newChatRef, {
-              users: [user.uid, partner.uid],
-              createdAt: serverTimestamp(),
-              status: "active",
-            });
+              // Atomically update both users to 'chatting'.
+              // The current user was never 'waiting' in the DB, which prevents the race condition.
+              transaction.update(doc(db, "users", user.uid), {
+                status: "chatting",
+                currentChatId: newChatRef.id,
+                matchedWith: partner.uid,
+              });
+              transaction.update(partnerRef, {
+                status: "chatting",
+                currentChatId: newChatRef.id,
+                matchedWith: user.uid,
+              });
 
-            // Atomically update both users to 'chatting'.
-            transaction.update(userRef, { status: "chatting", currentChatId: newChatRef.id, matchedWith: partner.uid });
-            transaction.update(partnerRef, { status: "chatting", currentChatId: newChatRef.id, matchedWith: user.uid });
-            
-            return { chatId: newChatRef.id, partner }; // Success
+              return { chatId: newChatRef.id, partner }; // Success
+            }
           }
-        }
-        
-        // If the loop finishes, all candidates were already taken.
-        return null; 
-      });
+          return null; // All candidates were taken by others.
+        });
 
-      // Handle the result of the transaction.
-      if (result) {
-        console.log("Match successful, adding connection messages");
-        const messagesRef = collection(db, "chats", result.chatId, "messages");
-        
-        // Your existing message logic here...
-        await addDoc(messagesRef, {
+        if (result) {
+          // The rest of your success logic...
+          console.log("Match successful, adding connection messages");
+          const messagesRef = collection(
+            db,
+            "chats",
+            result.chatId,
+            "messages"
+          );
+          await addDoc(messagesRef, {
             text: `May ka-talking stage ka na: ${result.partner.displayName}! Go na, bestie. 💅`,
             createdAt: serverTimestamp(),
             uid: "system",
@@ -671,7 +677,7 @@ export default function App() {
             type: "connection",
             visibleTo: user.uid,
           });
-        await addDoc(messagesRef, {
+          await addDoc(messagesRef, {
             text: `May ka-talking stage ka na: ${userProfile.displayName}! Go na, bestie. 💅`,
             createdAt: serverTimestamp(),
             uid: "system",
@@ -679,17 +685,39 @@ export default function App() {
             type: "connection",
             visibleTo: result.partner.uid,
           });
-
-      } else {
-        console.log("All potential partners were matched by others. You are now in the waiting pool.");
+          return; // Exit function after successful match.
+        } else {
+          console.log(
+            "All potential partners were matched by others. You will now wait."
+          );
+          // Fall through to Scenario 2 if all candidates were taken.
+        }
+      } catch (error) {
+        console.error("Matchmaking transaction failed:", error);
+        showNotification(
+          "A matchmaking error occurred. Please try again.",
+          "error"
+        );
+        setAppState("matchmaking");
+        await setDoc(
+          doc(db, "users", user.uid),
+          { status: "matchmaking" },
+          { merge: true }
+        );
+        return; // Exit on error
       }
-
-    } catch (error) {
-      console.error("Matchmaking transaction failed:", error);
-      showNotification("A matchmaking error occurred. Please try again.", "error");
-      setAppState("matchmaking");
-      await setDoc(userRef, { status: "matchmaking" }, { merge: true });
     }
+
+    // --- Scenario 2: NO users are waiting (or all were taken) ---
+    // If we reach this point, we need to set our own status to 'waiting'.
+    console.log("No one is waiting. You are now in the waiting pool.");
+    const userRef = doc(db, "users", user.uid);
+    await setDoc(
+      userRef,
+      { status: "waiting", waitingStarted: serverTimestamp() },
+      { merge: true }
+    );
+    // The UI is already showing 'waiting', so no state change is needed here.
   };
 
   const endChat = async () => {
