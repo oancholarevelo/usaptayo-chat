@@ -569,72 +569,75 @@ export default function App() {
     }
 
     console.log("Starting matchmaking for user:", user.uid);
-    setAppState("waiting"); // Visually show the user they are waiting
+    setAppState("waiting");
 
     try {
       // Use a transaction to find and match users atomically
       const result = await runTransaction(db, async (transaction) => {
-        // Query for other waiting users.
-        // The problematic where("uid", "!=", user.uid) clause has been REMOVED.
-        const waitingUsersQuery = query(
-          collection(db, "users"),
-          where("status", "==", "waiting"),
-          limit(1) // We only need one partner
+        // Step 1: Query the 'waitingPool' collection for a partner
+        const waitingPoolQuery = query(
+          collection(db, "waitingPool"),
+          limit(1)
         );
+        const waitingDocs = await transaction.get(waitingPoolQuery);
 
-        const waitingUsersSnap = await transaction.get(waitingUsersQuery);
-
-        if (!waitingUsersSnap.empty) {
+        if (!waitingDocs.empty) {
           // --- MATCH FOUND ---
-          const partnerDoc = waitingUsersSnap.docs[0];
-          
-          // Safeguard: Make sure we didn't somehow find ourselves.
+          const partnerDoc = waitingDocs.docs[0];
+
+          // Safeguard: Prevent matching with yourself
           if (partnerDoc.id === user.uid) {
-            console.log("Found myself in the waiting pool, will retry by adding self to pool.");
-            // By returning null, we will proceed to the 'else' logic's outcome
-            return null; 
+            console.log("Found myself in the waiting pool. This is an edge case. Will retry.");
+            // By returning null, we will place ourselves in the pool correctly.
+            transaction.delete(partnerDoc.ref); // Delete the old entry
+            return null;
           }
+          
+          const partnerProfile = partnerDoc.data();
+          console.log("Partner found:", partnerProfile.displayName);
 
-          const partnerRef = partnerDoc.ref;
-          const partner = partnerDoc.data();
-
-          console.log("Partner found:", partner.uid);
-
-          // Create a new chat document
+          // Step 2: Create the new chat document
           const newChatRef = doc(collection(db, "chats"));
-          const chatData = {
-            users: [user.uid, partner.uid],
-            userNames: { // Storing names for easy access
+          transaction.set(newChatRef, {
+            users: [user.uid, partnerProfile.uid],
+            userNames: {
               [user.uid]: userProfile.displayName,
-              [partner.uid]: partner.displayName,
+              [partnerProfile.uid]: partnerProfile.displayName,
             },
             createdAt: serverTimestamp(),
             status: "active",
-          };
-          transaction.set(newChatRef, chatData);
+          });
 
-          // Update both users to 'chatting' state
+          // Step 3: Update BOTH users' status to 'chatting' in the main 'users' collection
           const currentUserRef = doc(db, "users", user.uid);
           transaction.update(currentUserRef, {
             status: "chatting",
             currentChatId: newChatRef.id,
           });
-          transaction.update(partnerRef, {
+          
+          const partnerUserRef = doc(db, "users", partnerProfile.uid);
+           transaction.update(partnerUserRef, {
             status: "chatting",
             currentChatId: newChatRef.id,
           });
 
-          return { chatId: newChatRef.id, partner: partner };
+          // Step 4: Delete the matched partner from the 'waitingPool'
+          transaction.delete(partnerDoc.ref);
 
+          return { chatId: newChatRef.id, partner: partnerProfile };
         } else {
           // --- NO MATCH FOUND ---
-          console.log("No waiting users found, adding self to the pool.");
+          console.log("No one in waiting pool, adding self.");
+          
+          // Add the current user to the 'waitingPool' collection
+          const waitingRef = doc(db, "waitingPool", user.uid);
+          transaction.set(waitingRef, userProfile);
+          
+          // Also update the user's main status
           const currentUserRef = doc(db, "users", user.uid);
-          transaction.update(currentUserRef, {
-            status: "waiting",
-            waitingSince: serverTimestamp(),
-          });
-          return null; // Indicate that we are now waiting
+          transaction.update(currentUserRef, { status: "waiting" });
+
+          return null; // Indicates we are now waiting
         }
       });
 
@@ -666,10 +669,9 @@ export default function App() {
 
         await Promise.all([
           addDoc(messagesRef, myMessage),
-          addDoc(messagesRef, partnerMessage),
+          addDoc(messages_ref, partnerMessage),
         ]);
         console.log("Connection messages added successfully.");
-        // The useEffect hook will automatically handle moving to the 'chatting' state
       } else {
         // No match found, user is now in 'waiting' state
         console.log("No match found, user is now waiting.");
@@ -677,7 +679,7 @@ export default function App() {
     } catch (error) {
       console.error("Matchmaking transaction failed:", error);
       showNotification("Matchmaking failed. Please try again.", "error");
-      
+
       // Revert user state to matchmaking on failure
       const userRef = doc(db, "users", user.uid);
       await setDoc(userRef, { status: "matchmaking" }, { merge: true });
