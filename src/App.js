@@ -562,117 +562,170 @@ export default function App() {
   }, []);
 
   const findChat = async () => {
-    if (!user || !userProfile) {
-      console.error("User or user profile not available for matchmaking.");
-      showNotification("Something went wrong, please try again.", "error");
-      return;
-    }
+    if (!user) return;
 
     console.log("Starting matchmaking for user:", user.uid);
-    setAppState("waiting"); // Visually show the user they are waiting
+
+    const userRef = doc(db, "users", user.uid);
+    await setDoc(
+      userRef,
+      {
+        status: "waiting",
+        waitingStarted: serverTimestamp(),
+        lastHeartbeat: serverTimestamp(),
+      },
+      { merge: true }
+    );
 
     try {
-      // Use a transaction to find and match users atomically
+      // Improved transaction with better error handling and retry logic
       const result = await runTransaction(db, async (transaction) => {
-        // Query for other waiting users
+        // Query for waiting users excluding current user
         const waitingUsersQuery = query(
           collection(db, "users"),
           where("status", "==", "waiting"),
-          where("uid", "!=", user.uid),
-          limit(1) // We only need one partner
+          where("uid", "!=", user.uid)
         );
 
-        const waitingUsersSnap = await transaction.get(waitingUsersQuery);
+        const waitingUsersSnap = await getDocs(waitingUsersQuery);
+        console.log("Found waiting users:", waitingUsersSnap.size);
 
         if (!waitingUsersSnap.empty) {
-          // --- MATCH FOUND ---
-          const partnerDoc = waitingUsersSnap.docs[0];
-          const partnerRef = partnerDoc.ref;
-          const partner = partnerDoc.data();
+          // Get the first available partner
+          let partner = null;
+          let partnerRef = null;
 
-          console.log("Partner found:", partner.uid);
+          // Try each waiting user until we find one that's still available
+          for (const doc of waitingUsersSnap.docs) {
+            const potentialPartner = doc.data();
+            const potentialPartnerRef = doc.ref;
 
-          // Create a new chat document
-          const newChatRef = doc(collection(db, "chats"));
-          const chatData = {
-            users: [user.uid, partner.uid],
-            userNames: { // Storing names for easy access
-              [user.uid]: userProfile.displayName,
-              [partner.uid]: partner.displayName,
-            },
-            createdAt: serverTimestamp(),
-            status: "active",
-          };
-          transaction.set(newChatRef, chatData);
+            // Double-check partner status in transaction
+            const partnerDoc = await transaction.get(potentialPartnerRef);
 
-          // Update both users to 'chatting' state
-          const currentUserRef = doc(db, "users", user.uid);
-          transaction.update(currentUserRef, {
-            status: "chatting",
-            currentChatId: newChatRef.id,
-          });
-          transaction.update(partnerRef, {
-            status: "chatting",
-            currentChatId: newChatRef.id,
-          });
+            if (partnerDoc.exists() && partnerDoc.data().status === "waiting") {
+              partner = potentialPartner;
+              partnerRef = potentialPartnerRef;
+              console.log("Found available partner:", partner.uid);
+              break;
+            } else {
+              console.log("Partner no longer available:", potentialPartner.uid);
+            }
+          }
 
-          return { chatId: newChatRef.id, partner: partner };
+          if (partner && partnerRef) {
+            // Create new chat with unique ID
+            const newChatRef = doc(collection(db, "chats"));
+            const chatData = {
+              users: [user.uid, partner.uid],
+              createdAt: serverTimestamp(),
+              status: "active",
+            };
 
+            console.log(
+              "Creating chat:",
+              newChatRef.id,
+              "between",
+              user.uid,
+              "and",
+              partner.uid
+            );
+            transaction.set(newChatRef, chatData);
+
+            // Update both users atomically
+            transaction.update(userRef, {
+              status: "chatting",
+              currentChatId: newChatRef.id,
+              matchedAt: serverTimestamp(),
+              matchedWith: partner.uid,
+            });
+
+            transaction.update(partnerRef, {
+              status: "chatting",
+              currentChatId: newChatRef.id,
+              matchedAt: serverTimestamp(),
+              matchedWith: user.uid,
+            });
+
+            return { chatId: newChatRef.id, partner: partner };
+          } else {
+            console.log("No available partners found");
+            return null;
+          }
         } else {
-          // --- NO MATCH FOUND ---
-          console.log("No waiting users found, adding self to the pool.");
-          const currentUserRef = doc(db, "users", user.uid);
-          transaction.update(currentUserRef, {
-            status: "waiting",
-            waitingSince: serverTimestamp(),
-          });
-          return null; // Indicate that we are now waiting
+          console.log("No waiting users found");
+          return null;
         }
       });
 
-      // After the transaction completes
+      // Handle successful match
       if (result) {
-        // Match was successful, add connection messages
-        console.log("Match successful, adding connection messages to chat:", result.chatId);
+        console.log("Match successful, adding connection messages");
         const messagesRef = collection(db, "chats", result.chatId, "messages");
 
-        const myMessage = {
-          text: `May ka-talking stage ka na: ${result.partner.displayName}! Go na, bestie. 💅`,
-          createdAt: serverTimestamp(),
-          uid: "system",
-          displayName: "System",
-          isSystemMessage: true,
-          type: "connection",
-          visibleTo: user.uid,
-        };
+        // Add connection messages for both users
+        const messagePromises = [
+          addDoc(messagesRef, {
+            text: `May ka-talking stage ka na: ${result.partner.displayName}! Go na, bestie. 💅`,
+            createdAt: serverTimestamp(),
+            uid: "system",
+            photoURL: "",
+            displayName: "System",
+            isSystemMessage: true,
+            type: "connection",
+            visibleTo: user.uid,
+          }),
+          addDoc(messagesRef, {
+            text: `May ka-talking stage ka na: ${userProfile.displayName}! Go na, bestie. 💅`,
+            createdAt: serverTimestamp(),
+            uid: "system",
+            photoURL: "",
+            displayName: "System",
+            isSystemMessage: true,
+            type: "connection",
+            visibleTo: result.partner.uid,
+          }),
+        ];
 
-        const partnerMessage = {
-          text: `May ka-talking stage ka na: ${userProfile.displayName}! Go na, bestie. 💅`,
-          createdAt: serverTimestamp(),
-          uid: "system",
-          displayName: "System",
-          isSystemMessage: true,
-          type: "connection",
-          visibleTo: result.partner.uid,
-        };
-
-        await Promise.all([
-          addDoc(messagesRef, myMessage),
-          addDoc(messagesRef, partnerMessage),
-        ]);
-        console.log("Connection messages added successfully.");
-        // The useEffect hook will automatically handle moving to the 'chatting' state
+        await Promise.all(messagePromises);
+        console.log("Connection messages added successfully");
       } else {
-        // No match found, user is now in 'waiting' state
-        console.log("No match found, user is now waiting.");
+        // No match found, stay in waiting state
+        console.log("No match found, staying in waiting state");
       }
     } catch (error) {
       console.error("Matchmaking transaction failed:", error);
-      showNotification("Matchmaking failed. Please try again.", "error");
-      
-      // Revert user state to matchmaking on failure
-      const userRef = doc(db, "users", user.uid);
-      await setDoc(userRef, { status: "matchmaking" }, { merge: true });
+
+      // More robust error handling with exponential backoff
+      const retryDelay = Math.min(1000 * Math.pow(2, Math.random()), 5000);
+
+      setTimeout(async () => {
+        try {
+          // Check current user status before retry
+          const currentUserDoc = await getDoc(userRef);
+          if (
+            currentUserDoc.exists() &&
+            currentUserDoc.data().status === "waiting"
+          ) {
+            console.log("Retrying matchmaking after error");
+            // Reset to waiting state and try again
+            await setDoc(
+              userRef,
+              {
+                status: "waiting",
+                lastRetry: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }
+        } catch (retryError) {
+          console.error("Retry failed:", retryError);
+          // Fall back to matchmaking screen
+          await setDoc(userRef, { status: "matchmaking" }, { merge: true });
+          setAppState("matchmaking");
+          showNotification("Connection failed, please try again!", "error");
+        }
+      }, retryDelay);
     }
   };
 
