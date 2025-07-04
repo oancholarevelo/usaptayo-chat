@@ -1517,10 +1517,11 @@ const Header = ({ chatEnded, onSecretTap, theme, toggleTheme }) => (
 const ChatRoom = ({ userProfile, chatId }) => {
   const [messages, setMessages] = useState([]);
   const [partnerIsTyping, setPartnerIsTyping] = useState(false);
+  const [activePickerId, setActivePickerId] = useState(null);
   const dummy = useRef();
   const chatRoomRef = useRef();
 
-  // Effect to listen for messages
+  //UNCHANGED: Fetch messages
   useEffect(() => {
     if (!chatId) return;
     const messagesRef = collection(db, "chats", chatId, "messages");
@@ -1535,20 +1536,16 @@ const ChatRoom = ({ userProfile, chatId }) => {
     return unsubscribe;
   }, [chatId]);
 
-  // Effect to listen for partner's typing status
+  // UNCHANGED: Partner typing status
   useEffect(() => {
     if (!chatId || !userProfile) return;
-
     let partnerUnsubscribe = () => {};
-
     const getPartner = async () => {
       const chatRef = doc(db, "chats", chatId);
       const chatSnap = await getDoc(chatRef);
-
       if (chatSnap.exists()) {
         const users = chatSnap.data().users;
         const partnerId = users.find((uid) => uid !== userProfile.uid);
-
         if (partnerId) {
           const partnerRef = doc(db, "users", partnerId);
           partnerUnsubscribe = onSnapshot(partnerRef, (partnerDoc) => {
@@ -1562,12 +1559,11 @@ const ChatRoom = ({ userProfile, chatId }) => {
         }
       }
     };
-
     getPartner();
-    return () => partnerUnsubscribe(); // Cleanup listener on unmount
+    return () => partnerUnsubscribe();
   }, [chatId, userProfile]);
 
-  // Effect for scrolling to bottom
+  // UNCHANGED: Scroll to bottom
   useEffect(() => {
     const scrollToBottom = () => {
       if (dummy.current) {
@@ -1576,25 +1572,55 @@ const ChatRoom = ({ userProfile, chatId }) => {
     };
     const timeoutId = setTimeout(scrollToBottom, 100);
     return () => clearTimeout(timeoutId);
-  }, [messages, partnerIsTyping]); // Also scroll when typing indicator appears/disappears
+  }, [messages, partnerIsTyping]);
+
+  // === NEWLY ADDED EFFECT FOR CLOSING THE PICKER ===
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // If the click is not on a message bubble or its children, close the picker
+      if (!event.target.closest('.message-bubble-wrapper')) {
+        setActivePickerId(null);
+      }
+    };
+
+    // Use the chat room's ref to add the event listener
+    const chatRoomElement = chatRoomRef.current;
+    if (chatRoomElement) {
+      chatRoomElement.addEventListener('mousedown', handleClickOutside);
+    }
+
+    // Cleanup function to remove the listener when the component unmounts
+    return () => {
+      if (chatRoomElement) {
+        chatRoomElement.removeEventListener('mousedown', handleClickOutside);
+      }
+    };
+  }, [setActivePickerId]); // Re-run effect if the setter function changes
 
   return (
     <main className="chat-room" ref={chatRoomRef}>
-      {messages.map((msg) => (
-        <ChatMessage
-          key={msg.id}
-          // This line is crucial: it passes all message data, including the new chatId
-          message={{ ...msg, chatId: chatId }}
-          currentUserUID={userProfile.uid}
-        />
-      ))}
+      {messages.map((msg, index) => {
+        const prevMessage = messages[index - 1];
+        const isConsecutive = prevMessage && prevMessage.uid === msg.uid && !prevMessage.isSystemMessage;
+
+        return (
+          <ChatMessage
+            key={msg.id}
+            message={{ ...msg, chatId: chatId }}
+            currentUserUID={userProfile.uid}
+            showPicker={activePickerId === msg.id}
+            setActivePickerId={setActivePickerId}
+            isConsecutive={isConsecutive}
+          />
+        );
+      })}
       {partnerIsTyping && <TypingIndicator />}
       <div ref={dummy} className="dummy-div"></div>
     </main>
   );
 };
 
-const ChatMessage = ({ message, currentUserUID }) => {
+const ChatMessage = ({ message, currentUserUID, showPicker, setActivePickerId, isConsecutive }) => {
   const {
     text,
     uid,
@@ -1603,15 +1629,14 @@ const ChatMessage = ({ message, currentUserUID }) => {
     visibleTo,
     type,
     pollData,
-    id: messageId, // Use message.id as messageId
+    id: messageId,
     chatId,
-    reactions, // Get reactions from the message object
+    reactions,
   } = message;
 
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const availableReactions = ["👍", "❤️", "😆", "😮", "☹️", "🥹"];
 
-  // Handle system messages (no changes needed here)
+  // System message handling remains the same
   if (isSystemMessage) {
     if (type === "poll" && pollData) {
       return (
@@ -1622,16 +1647,12 @@ const ChatMessage = ({ message, currentUserUID }) => {
         />
       );
     }
-
     if (visibleTo && visibleTo !== currentUserUID) {
       return null;
     }
     let systemMessageClass = "system-message";
-    if (type === "connection") {
-      systemMessageClass += " connection";
-    } else if (type === "disconnection") {
-      systemMessageClass += " disconnection";
-    }
+    if (type === "connection") systemMessageClass += " connection";
+    else if (type === "disconnection") systemMessageClass += " disconnection";
     return (
       <div className={systemMessageClass}>
         <p>{text}</p>
@@ -1639,71 +1660,63 @@ const ChatMessage = ({ message, currentUserUID }) => {
     );
   }
 
+  const handleBubbleClick = () => {
+    setActivePickerId(showPicker ? null : messageId);
+  };
+
   const handleReaction = async (emoji) => {
     const messageRef = doc(db, "chats", chatId, "messages", messageId);
-
     await runTransaction(db, async (transaction) => {
       const messageDoc = await transaction.get(messageRef);
-      if (!messageDoc.exists()) {
-        throw new Error("Message does not exist!");
-      }
-
+      if (!messageDoc.exists()) throw new Error("Message does not exist!");
       const data = messageDoc.data();
       const currentReactions = data.reactions || {};
-      let userHasReactedWithEmoji = false;
+      let userHasReactedWithEmoji =
+        currentReactions[emoji]?.includes(currentUserUID);
 
-      // Check if user has already reacted with this emoji
-      if (
-        currentReactions[emoji] &&
-        currentReactions[emoji].includes(currentUserUID)
-      ) {
-        userHasReactedWithEmoji = true;
-      }
-
-      // Remove any previous reaction from the user
       for (const key in currentReactions) {
         currentReactions[key] = currentReactions[key].filter(
           (reactorId) => reactorId !== currentUserUID
         );
-        // Clean up empty reaction arrays
-        if (currentReactions[key].length === 0) {
-          delete currentReactions[key];
-        }
+        if (currentReactions[key].length === 0) delete currentReactions[key];
       }
 
-      // If the user hadn't reacted with this emoji, add the new reaction
       if (!userHasReactedWithEmoji) {
-        if (!currentReactions[emoji]) {
-          currentReactions[emoji] = [];
-        }
+        if (!currentReactions[emoji]) currentReactions[emoji] = [];
         currentReactions[emoji].push(currentUserUID);
       }
-
+      
       transaction.update(messageRef, { reactions: currentReactions });
     });
-    setShowEmojiPicker(false); // Close picker after reacting
+    setActivePickerId(null);
   };
 
   const messageClass = uid === currentUserUID ? "sent" : "received";
+  const consecutiveClass = isConsecutive ? "consecutive" : "";
 
   return (
-    <div className={`message-container ${messageClass}`}>
-      <div className={`message-bubble ${messageClass}`}>
-        <p className="display-name">{displayName || "Anonymous"}</p>
-        <p>{text}</p>
-
-        {/* --- Reaction UI Elements --- */}
-        <button
-          className="reaction-button"
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-        >
-          😊
-        </button>
-
-        {showEmojiPicker && (
+    <div className={`message-container ${messageClass} ${consecutiveClass}`}>
+      <div className={`message-bubble-wrapper`}>
+        
+        {/* === CHANGE IS HERE === */}
+        {/* The display name is now OUTSIDE the message bubble div */}
+        {!isConsecutive && <p className="display-name">{displayName || "Anonymous"}</p>}
+        
+        <div className={`message-bubble ${messageClass}`} onClick={handleBubbleClick}>
+          {/* The name is no longer inside this div */}
+          <p>{text}</p>
+        </div>
+        
+        {showPicker && (
           <div className="emoji-picker-popup">
             {availableReactions.map((emoji) => (
-              <span key={emoji} onClick={() => handleReaction(emoji)}>
+              <span
+                key={emoji}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReaction(emoji);
+                }}
+              >
                 {emoji}
               </span>
             ))}
@@ -2064,7 +2077,7 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
         message: message.trim(),
         status: "pending",
         createdAt: serverTimestamp(),
-        paymentAmount: 10,
+        paymentAmount: 15,
         duration: 10, // minutes
       });
       onSuccess();
@@ -2139,7 +2152,7 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
               </p>
               <ol>
                 <li>
-                  Send exactly <strong>₱10.00</strong> to any number above.
+                  Send exactly <strong>₱15.00</strong> to any number above.
                 </li>
                 <li>Screenshot the receipt.</li>
                 <li>DM the screenshot to our admin for verification.</li>
@@ -2378,7 +2391,7 @@ const AdminPanel = ({ onApprove, onReject, onLogout }) => {
                   📅 {formatDate(request.createdAt)}
                 </span>
                 <span className="request-price">
-                  💰 ₱{request.paymentAmount || 10}.00
+                  💰 ₱{request.paymentAmount || 15}.00
                 </span>
               </div>
               <p className="request-message">"{request.message}"</p>
@@ -2393,7 +2406,7 @@ const AdminPanel = ({ onApprove, onReject, onLogout }) => {
                       `Approve this announcement?\n\nMessage: "${
                         request.message
                       }"\n\nMake sure payment of ₱${
-                        request.paymentAmount || 10
+                        request.paymentAmount || 15
                       } has been received before approving.`
                     );
                     if (confirmed) {
