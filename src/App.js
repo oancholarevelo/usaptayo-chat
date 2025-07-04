@@ -29,6 +29,23 @@ export default function App() {
     const [chatId, setChatId] = useState(null);
     const [notification, setNotification] = useState({ show: false, message: '', type: 'info' }); // info, success, error
     const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', onConfirm: null });
+    const [theme, setTheme] = useState(() => {
+        // Get theme from localStorage or default to 'dark'
+        return localStorage.getItem('usaptayo-theme') || 'dark';
+    });
+
+    // Theme toggle function
+    const toggleTheme = () => {
+        const newTheme = theme === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+        localStorage.setItem('usaptayo-theme', newTheme);
+        document.documentElement.setAttribute('data-theme', newTheme);
+    };
+
+    // Set theme on component mount
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+    }, [theme]);
 
     // Helper functions for notifications
     const showNotification = (message, type = 'info') => {
@@ -394,6 +411,7 @@ export default function App() {
         case 'loading':
             return (
                 <>
+                    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                     <LoadingScreen text="Loading..." />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
@@ -403,6 +421,7 @@ export default function App() {
         case 'homepage':
             return (
                 <>
+                    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                     <Homepage onAccept={handleHomepageAccept} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
@@ -412,6 +431,7 @@ export default function App() {
         case 'nickname':
             return (
                 <>
+                    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                     <NicknamePrompt onProfileCreate={handleProfileCreate} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
@@ -421,6 +441,7 @@ export default function App() {
         case 'matchmaking':
             return (
                 <>
+                    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                     <MatchmakingScreen onFindChat={findChat} onReset={handleReset} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
@@ -430,6 +451,7 @@ export default function App() {
         case 'waiting':
             return (
                 <>
+                    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                     <LoadingScreen text="Connecting to a stranger..." />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
@@ -439,6 +461,7 @@ export default function App() {
         case 'chatting':
             return (
                 <>
+                    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                     <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={endChat} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
@@ -448,7 +471,8 @@ export default function App() {
         case 'chat_ended':
             return (
                 <>
-                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={leaveEndedChat} chatEnded={true} />
+                    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+                    <ChatPage userProfile={userProfile} chatId={chatId} onEndChat={leaveEndedChat} onNextStranger={findChat} onBackHome={() => setAppState('matchmaking')} chatEnded={true} />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     <Analytics />
@@ -457,6 +481,7 @@ export default function App() {
         default:
             return (
                 <>
+                    <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                     <div className="centered-screen">
                         <div className="prompt-box">
                             <h1>UsapTayo</h1>
@@ -584,7 +609,7 @@ const MatchmakingScreen = ({ onFindChat, onReset }) => {
         <div className="centered-screen">
             <div className="prompt-box">
                 <h1>UsapTayo</h1>
-                <p>Ready to meet someone new?</p>
+                <p>Ready ka na ba maging backburner?</p>
                 <button onClick={onFindChat}>Find a Stranger</button>
                 <button onClick={onReset} className="reset-profile-button">
                     Reset Profile
@@ -594,21 +619,21 @@ const MatchmakingScreen = ({ onFindChat, onReset }) => {
     );
 };
 
-const ChatPage = ({ userProfile, chatId, onEndChat, chatEnded }) => (
+const ChatPage = ({ userProfile, chatId, onEndChat, onNextStranger, onBackHome, chatEnded }) => (
     <div className="chat-page">
-        <Header onEndChat={onEndChat} chatEnded={chatEnded} />
+        <Header chatEnded={chatEnded} />
         <ChatRoom userProfile={userProfile} chatId={chatId} />
-        {!chatEnded && <MessageInput userProfile={userProfile} chatId={chatId} />}
-        {chatEnded && <DisconnectedNotice />}
+        {!chatEnded && <MessageInput userProfile={userProfile} chatId={chatId} onEndChat={onEndChat} />}
+        {chatEnded && <ChatEndedActions onNextStranger={onNextStranger} onBackHome={onBackHome} />}
     </div>
 );
 
-const Header = ({ onEndChat, chatEnded }) => (
+const Header = ({ chatEnded }) => (
     <header className="header">
         <h1>UsapTayo</h1>
-        <button onClick={onEndChat}>
-            {chatEnded ? 'Leave Chat' : 'End Chat'}
-        </button>
+        <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            {chatEnded ? 'Chat Ended' : 'Connected'}
+        </div>
     </header>
 );
 
@@ -629,20 +654,32 @@ const ChatRoom = ({ userProfile, chatId }) => {
     }, [chatId]);
 
     useEffect(() => {
-        // Smooth scroll to bottom with a slight delay to ensure content is rendered
+        // More aggressive scroll to bottom for mobile devices
         const scrollToBottom = () => {
-            if (dummy.current) {
+            if (dummy.current && chatRoomRef.current) {
+                // Try multiple scroll methods for better mobile compatibility
                 dummy.current.scrollIntoView({ 
                     behavior: 'smooth',
                     block: 'end'
                 });
+                
+                // Fallback: scroll the chat room container to bottom
+                setTimeout(() => {
+                    if (chatRoomRef.current) {
+                        chatRoomRef.current.scrollTop = chatRoomRef.current.scrollHeight;
+                    }
+                }, 150);
             }
         };
         
-        // Use setTimeout to ensure the DOM is updated
-        const timeoutId = setTimeout(scrollToBottom, 100);
+        // Use multiple timeouts to ensure scrolling works on mobile
+        const timeoutId1 = setTimeout(scrollToBottom, 100);
+        const timeoutId2 = setTimeout(scrollToBottom, 300); // Second attempt for mobile
         
-        return () => clearTimeout(timeoutId);
+        return () => {
+            clearTimeout(timeoutId1);
+            clearTimeout(timeoutId2);
+        };
     }, [messages]);
 
     return (
@@ -693,7 +730,7 @@ const ChatMessage = ({ message, currentUserUID }) => {
     );
 };
 
-const MessageInput = ({ userProfile, chatId }) => {
+const MessageInput = ({ userProfile, chatId, onEndChat }) => {
     const [formValue, setFormValue] = useState('');
     const sendMessage = async (e) => {
         e.preventDefault();
@@ -711,9 +748,14 @@ const MessageInput = ({ userProfile, chatId }) => {
     };
     return (
         <form onSubmit={sendMessage} className="message-form">
+            <button type="button" onClick={onEndChat} className="end-chat-button" title="End Chat">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+            </button>
             <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="Start a conversation..." />
-            <button type="submit" disabled={!formValue.trim()}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button type="submit" disabled={!formValue.trim()} className="send-button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
                 </svg>
             </button>
@@ -755,9 +797,27 @@ const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
     </div>
 );
 
-// Disconnected Notice Component
-const DisconnectedNotice = () => (
-    <div className="disconnected-notice">
-        <p>The other user has left the chat. You can still read your conversation history above.</p>
+// Theme Toggle Component
+const ThemeToggle = ({ theme, toggleTheme }) => (
+    <button className="theme-toggle" onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+        {theme === 'dark' ? '☀️' : '🌙'}
+    </button>
+);
+
+// Chat Ended Actions Component
+const ChatEndedActions = ({ onNextStranger, onBackHome }) => (
+    <div className="chat-ended-actions">
+        <button onClick={onNextStranger} className="next-stranger-button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M13 17L18 12L13 7M6 12H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Next Stranger
+        </button>
+        <button onClick={onBackHome} className="back-home-button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5523 5.44772 21 6 21H9M19 10L21 12M19 10V20C19 20.5523 18.5523 21 18 21H15M9 21C9.55228 21 10 20.5523 10 20V16C10 15.4477 10.4477 15 11 15H13C13.5523 15 14 15.4477 14 16V20C14 20.5523 14.4477 21 15 21M9 21H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back to Home
+        </button>
     </div>
 );
