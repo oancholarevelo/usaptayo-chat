@@ -452,7 +452,7 @@ export default function App() {
             return (
                 <>
                     <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-                    <LoadingScreen text="Connecting to a stranger..." />
+                    <LoadingScreen text="Manifesting your person... 💫✨" />
                     {notification.show && <NotificationToast message={notification.message} type={notification.type} />}
                     {confirmDialog.show && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={hideConfirmDialog} />}
                     <Analytics />
@@ -515,34 +515,35 @@ const Homepage = ({ onAccept }) => {
             <div className="homepage-content">
                 <h1>Welcome to UsapTayo</h1>
                 <p>
-                    UsapTayo is an anonymous chat platform where you can connect with strangers and have 
-                    meaningful conversations. Whether you want to share your thoughts, seek advice, or 
-                    simply chat with someone new, UsapTayo provides a safe and friendly environment for 
-                    open communication. Start conversations, make connections, and discover new perspectives 
-                    from people around the world.
+                    Welcome to UsapTayo, where main character energy meets mystery! ✨ Chat anonymously 
+                    with strangers and create those butterfly moments you've been craving. Whether you're 
+                    looking for deep 3am conversations, someone to understand your vibe, or just want to 
+                    feel seen by a stranger who gets it - this is your safe space to connect. No filters, 
+                    no follows, just pure authentic energy and maybe that spark you've been manifesting. 💫
                 </p>
 
-                <h2>Community Guidelines</h2>
-                <p>To ensure a positive experience for everyone, please follow these guidelines:</p>
+                <h2>The Vibe Check 📱</h2>
+                <p>Keep the energy good and the vibes immaculate:</p>
                 <ul>
-                    <li>You must be at least 18 years old to use this platform.</li>
-                    <li>Be respectful and kind to other users at all times.</li>
-                    <li>Do not share personal information such as your real name, address, phone number, or social media accounts.</li>
-                    <li>Avoid sending inappropriate, offensive, or harmful messages.</li>
-                    <li>Do not spam, advertise, or promote external services.</li>
-                    <li>Report any inappropriate behavior using our reporting system.</li>
+                    <li>Be 18+ because we're keeping it mature and respectful 💅</li>
+                    <li>Spread good vibes only - toxic energy is not it, bestie</li>
+                    <li>Keep it mysterious! No real names, addresses, or socials - that's the whole point ✨</li>
+                    <li>No sending anything that would make your future self cringe</li>
+                    <li>Don't be that person who spams or tries to sell stuff - we're here for connections, not transactions</li>
+                    <li>If someone's giving you the ick, use the report button - we got you! 🛡️</li>
                 </ul>
 
-                <h2>Privacy & Safety</h2>
+                <h2>Your Secret is Safe ✨</h2>
                 <p>
-                    Your privacy and safety are our top priorities. All chats are anonymous and temporary. 
-                    We do not store your personal information or chat history permanently. Remember to never 
-                    share sensitive personal details with strangers online.
+                    Plot twist: everything here disappears like it never happened! 👻 Your chats are temporary, 
+                    your identity stays mysterious, and we don't keep receipts. It's giving witness protection 
+                    but make it romantic. Remember though - stranger danger is still real, so keep your personal 
+                    tea to yourself!
                 </p>
                 <p>
-                    By using UsapTayo, you acknowledge that you understand the risks of online communication 
-                    and agree to use the platform responsibly. We are not responsible for any interactions 
-                    or content shared between users.
+                    By entering this digital diary, you're agreeing to use your brain and keep things cute. 
+                    We're not responsible for whatever chaos happens between you and your mystery person - 
+                    that's between y'all and the universe! 🌙
                 </p>
 
                 <form onSubmit={handleSubmit} className="homepage-form">
@@ -553,7 +554,7 @@ const Homepage = ({ onAccept }) => {
                                 checked={isOver18} 
                                 onChange={(e) => setIsOver18(e.target.checked)} 
                             />
-                            I confirm that I am 18 years old or older.
+                            I'm 18+ and ready for the mystery ✨
                         </label>
                     </div>
                     <div className="checkbox-container">
@@ -563,11 +564,11 @@ const Homepage = ({ onAccept }) => {
                                 checked={agreeTerms} 
                                 onChange={(e) => setAgreeTerms(e.target.checked)} 
                             />
-                            I agree to follow the community guidelines and use UsapTayo responsibly.
+                            I promise to keep the vibes immaculate and respect the space 💫
                         </label>
                     </div>
                     <button type="submit" disabled={!isOver18 || !agreeTerms}>
-                        Start Chatting
+                        Enter the Mystery ✨
                     </button>
                 </form>
             </div>
@@ -579,7 +580,7 @@ const LoadingScreen = ({ text }) => (
     <div className="centered-screen loading-animation">
         <div className="prompt-box">
             <h1>UsapTayo</h1>
-            <p>{text}</p>
+            <p>{text === "Loading..." ? "Getting your vibe ready... ✨" : text}</p>
         </div>
     </div>
 );
@@ -594,10 +595,10 @@ const NicknamePrompt = ({ onProfileCreate }) => {
         <div className="centered-screen">
             <div className="prompt-box">
                 <h1>UsapTayo</h1>
-                <p>Choose a nickname to start chatting.</p>
+                <p>Choose your mystery name, bestie ✨</p>
                 <form onSubmit={handleSubmit}>
-                    <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="Enter your nickname" />
-                    <button type="submit" disabled={nickname.trim().length <= 2}>Let's Go!</button>
+                    <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="Your vibe name..." />
+                    <button type="submit" disabled={nickname.trim().length <= 2}>Let's Go! 💫</button>
                 </form>
             </div>
         </div>
@@ -610,9 +611,9 @@ const MatchmakingScreen = ({ onFindChat, onReset }) => {
             <div className="prompt-box">
                 <h1>UsapTayo</h1>
                 <p>Ready ka na ba maging backburner?</p>
-                <button onClick={onFindChat}>Find a Stranger</button>
+                <button onClick={onFindChat}>Find Your Mystery Person 💫</button>
                 <button onClick={onReset} className="reset-profile-button">
-                    Reset Profile
+                    Start Fresh ✨
                 </button>
             </div>
         </div>
@@ -750,7 +751,7 @@ const MessageInput = ({ userProfile, chatId, onEndChat }) => {
                     <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
             </button>
-            <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="Start a conversation..." />
+            <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="Say something that matters... ✨" />
             <button type="submit" disabled={!formValue.trim()} className="send-button">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
@@ -799,8 +800,10 @@ const ThemeToggle = ({ theme, toggleTheme }) => (
     <button className="theme-toggle" onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
         {theme === 'dark' ? (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="4"/>
-                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 6.34L4.93 4.93M19.07 19.07l-1.41-1.41"/>
+                <g>
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </g>
             </svg>
         ) : (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -814,10 +817,10 @@ const ThemeToggle = ({ theme, toggleTheme }) => (
 const ChatEndedActions = ({ onNextStranger, onBackHome }) => (
     <div className="chat-ended-actions">
         <button onClick={onNextStranger} className="next-stranger-button">
-            Next Stranger
+            Find Another Soul ✨
         </button>
         <button onClick={onBackHome} className="back-home-button">
-            Back to Home
+            Back to Reality 💫
         </button>
     </div>
 );
