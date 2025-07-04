@@ -15,7 +15,6 @@ import {
   limit,
   where,
   runTransaction,
-  getDocs,
   writeBatch,
   updateDoc,
 } from "firebase/firestore";
@@ -588,7 +587,6 @@ export default function App() {
           // Safeguard: Prevent matching with yourself
           if (partnerDoc.id === user.uid) {
             console.log("Found myself in the waiting pool. This is an edge case. Will retry.");
-            // By returning null, we will place ourselves in the pool correctly.
             transaction.delete(partnerDoc.ref); // Delete the old entry
             return null;
           }
@@ -629,21 +627,18 @@ export default function App() {
           // --- NO MATCH FOUND ---
           console.log("No one in waiting pool, adding self.");
           
-          // Add the current user to the 'waitingPool' collection
           const waitingRef = doc(db, "waitingPool", user.uid);
           transaction.set(waitingRef, userProfile);
           
-          // Also update the user's main status
           const currentUserRef = doc(db, "users", user.uid);
           transaction.update(currentUserRef, { status: "waiting" });
 
-          return null; // Indicates we are now waiting
+          return null; 
         }
       });
 
       // After the transaction completes
       if (result) {
-        // Match was successful, add connection messages
         console.log("Match successful, adding connection messages to chat:", result.chatId);
         const messagesRef = collection(db, "chats", result.chatId, "messages");
 
@@ -669,23 +664,21 @@ export default function App() {
 
         await Promise.all([
           addDoc(messagesRef, myMessage),
-          addDoc(messages_ref, partnerMessage),
+          // FIX: The typo 'messages_ref' is now corrected to 'messagesRef'
+          addDoc(messagesRef, partnerMessage),
         ]);
         console.log("Connection messages added successfully.");
       } else {
-        // No match found, user is now in 'waiting' state
         console.log("No match found, user is now waiting.");
       }
     } catch (error) {
       console.error("Matchmaking transaction failed:", error);
       showNotification("Matchmaking failed. Please try again.", "error");
 
-      // Revert user state to matchmaking on failure
       const userRef = doc(db, "users", user.uid);
       await setDoc(userRef, { status: "matchmaking" }, { merge: true });
     }
   };
-
   const endChat = async () => {
     if (!user || !chatId) return;
 
