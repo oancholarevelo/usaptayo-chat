@@ -1131,12 +1131,35 @@ body {
   max-width: 300px;
   margin: 0 auto;
   text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  min-height: 44px;
 }
 
-.logout-button:hover {
+.logout-button:hover,
+.logout-button:active {
   background-color: #dc2626;
   border-color: #dc2626;
   transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .logout-button {
+    padding: 1rem 1.5rem;
+    min-height: 48px;
+    font-size: 1rem;
+    margin: 1rem auto;
+  }
+  
+  .admin-footer {
+    padding: 1.5rem;
+    position: sticky;
+    bottom: 0;
+    background-color: var(--bg-primary);
+  }
 }
 
 /* --- Request Card Styles (Unchanged) --- */
