@@ -1546,16 +1546,26 @@ const ChatRoom = ({ userProfile, chatId }) => {
   //UNCHANGED: Fetch messages
   useEffect(() => {
     if (!chatId) return;
-    const messagesRef = collection(db, "chats", chatId, "messages");
-    const q = query(messagesRef, orderBy("createdAt", "asc"), limit(100));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const msgs = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setMessages(msgs);
-    });
-    return unsubscribe;
+
+    // Check if the hint has been shown in this session
+    const hintShown = sessionStorage.getItem('usaptayo-reaction-hint-shown');
+    if (!hintShown) {
+        // Use a timer to ensure the hint appears after the initial connection messages
+        const timer = setTimeout(() => {
+            const hintMessage = {
+                id: 'system-hint-reactions', // A unique ID for React's key prop
+                text: 'Pro-tip: Tap on a message bubble to react! 😉',
+                uid: 'system',
+                isSystemMessage: true,
+                type: 'info', // A new type for styling
+            };
+            setMessages(prev => [...prev, hintMessage]);
+            // Set a flag in session storage so it doesn't show again
+            sessionStorage.setItem('usaptayo-reaction-hint-shown', 'true');
+        }, 2000); // 2-second delay
+
+        return () => clearTimeout(timer); // Cleanup timer on unmount
+    }
   }, [chatId]);
 
   // UNCHANGED: Partner typing status
@@ -1738,7 +1748,17 @@ const ChatMessage = ({
           className={`message-bubble ${messageClass}`}
           onClick={handleBubbleClick}
         >
-          {/* The name is no longer inside this div */}
+          {/* === START: NEWLY ADDED REACTION HINT ICON === */}
+          <div className="reaction-hint-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+              <line x1="9" y1="9" x2="9.01" y2="9"></line>
+              <line x1="15" y1="9" x2="15.01" y2="9"></line>
+            </svg>
+          </div>
+          {/* === END: NEWLY ADDED REACTION HINT ICON === */}
+
           <p>{text}</p>
         </div>
 

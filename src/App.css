@@ -399,6 +399,52 @@ body {
   transition: border-radius 0.2s ease-in-out;
 }
 
+.message-bubble {
+  position: relative;
+}
+
+/* The reaction hint icon itself */
+.reaction-hint-icon {
+  position: absolute;
+  top: 50%;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  opacity: 0; /* Hidden by default */
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none; /* So it doesn't interfere with the bubble click */
+}
+
+/* Position the icon outside the bubble */
+.message-bubble.sent .reaction-hint-icon {
+  left: -18px;
+  transform: translateY(-50%) scale(0.8);
+}
+
+.message-bubble.received .reaction-hint-icon {
+  right: -18px;
+  transform: translateY(-50%) scale(0.8);
+}
+
+.reaction-hint-icon svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+/* Show the icon ONLY on devices that support hover (like desktops) */
+@media (hover: hover) {
+  .message-bubble:hover .reaction-hint-icon {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
 .emoji-picker-popup {
   position: absolute;
   top: -3.5rem;
@@ -522,6 +568,10 @@ body {
   background-color: var(--error-color);
 }
 
+.system-message.info {
+  background-color: var(--info-color);
+  font-style: normal; /* Make it look slightly different from other system messages */
+}
 
 /* --- Message Input Form & Chat Ended Actions --- */
 .message-form,
