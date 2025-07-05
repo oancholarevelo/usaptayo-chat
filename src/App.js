@@ -738,13 +738,10 @@ export default function App() {
       const usersInChat = chatSnap.data().users;
 
       // Add a disconnection message to the chat
-      const messagesRef = collection(db, "chats", chatId, "messages");
-      await addDoc(messagesRef, {
+      await addDoc(collection(db, "chats", chatId, "messages"), {
         text: `Plot twist: ${userProfile.displayName} ghosted. 👻`,
         createdAt: serverTimestamp(),
         uid: "system",
-        photoURL: "",
-        displayName: "System",
         isSystemMessage: true,
         type: "disconnection",
       });
@@ -755,26 +752,17 @@ export default function App() {
         endedAt: serverTimestamp(),
         endedBy: user.uid,
       });
-
-      // Update user statuses - only the one who ended goes back to matchmaking
+      
       usersInChat.forEach((uid) => {
         const userRef = doc(db, "users", uid);
-        if (uid === user.uid) {
-          // User who ended the chat goes back to matchmaking
-          batch.update(userRef, { status: "matchmaking", currentChatId: null });
-        } else {
-          // Other user stays in chat but with ended status
-          batch.update(userRef, {
-            status: "chat_ended",
-            currentChatId: chatId,
-          });
-        }
+        batch.update(userRef, {
+          status: "chat_ended",
+          currentChatId: chatId, // Keep the chatId for viewing the ended chat
+        });
       });
 
       await batch.commit();
     }
-    setChatId(null);
-    setAppState("matchmaking");
   };
 
   const leaveEndedChat = async () => {
