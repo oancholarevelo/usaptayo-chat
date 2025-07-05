@@ -1543,28 +1543,47 @@ const ChatRoom = ({ userProfile, chatId }) => {
   const dummy = useRef();
   const chatRoomRef = useRef();
 
-  //UNCHANGED: Fetch messages
+  // HOOK 1: Fetches chat messages from the database (This was the missing part)
+  useEffect(() => {
+    if (!chatId) return;
+
+    const messagesRef = collection(db, "chats", chatId, "messages");
+    const q = query(messagesRef, orderBy("createdAt", "asc"), limit(100));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const msgs = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setMessages(msgs);
+    });
+
+    return unsubscribe; // Cleanup the listener on unmount
+  }, [chatId]);
+
+  // HOOK 2: Shows the one-time reaction hint (This part is correct)
   useEffect(() => {
     if (!chatId) return;
 
     // Check if the hint has been shown in this session
-    const hintShown = sessionStorage.getItem('usaptayo-reaction-hint-shown');
+    const hintShown = sessionStorage.getItem("usaptayo-reaction-hint-shown");
     if (!hintShown) {
-        // Use a timer to ensure the hint appears after the initial connection messages
-        const timer = setTimeout(() => {
-            const hintMessage = {
-                id: 'system-hint-reactions', // A unique ID for React's key prop
-                text: 'Pro-tip: Tap on a message bubble to react! 😉',
-                uid: 'system',
-                isSystemMessage: true,
-                type: 'info', // A new type for styling
-            };
-            setMessages(prev => [...prev, hintMessage]);
-            // Set a flag in session storage so it doesn't show again
-            sessionStorage.setItem('usaptayo-reaction-hint-shown', 'true');
-        }, 2000); // 2-second delay
+      // Use a timer to ensure the hint appears after the initial connection messages
+      const timer = setTimeout(() => {
+        const hintMessage = {
+          id: "system-hint-reactions", // A unique ID for React's key prop
+          text: "Pro-tip: Tap on a message bubble to react! 😉",
+          uid: "system",
+          isSystemMessage: true,
+          type: "info", // For special styling
+        };
+        // Add the hint to the existing messages
+        setMessages((prev) => [...prev, hintMessage]);
+        // Set a flag so it doesn't show again
+        sessionStorage.setItem("usaptayo-reaction-hint-shown", "true");
+      }, 2000); // 2-second delay
 
-        return () => clearTimeout(timer); // Cleanup timer on unmount
+      return () => clearTimeout(timer); // Cleanup timer on unmount
     }
   }, [chatId]);
 
@@ -1750,7 +1769,17 @@ const ChatMessage = ({
         >
           {/* === START: NEWLY ADDED REACTION HINT ICON === */}
           <div className="reaction-hint-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
               <line x1="9" y1="9" x2="9.01" y2="9"></line>
