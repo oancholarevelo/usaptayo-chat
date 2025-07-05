@@ -346,35 +346,40 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        const userRef = doc(db, "users", currentUser.uid);
 
-        // Check for a stored chat session
+        // Check for a stored chat session to restore (for page reloads)
         const storedChatId = sessionStorage.getItem("usaptayo-chatId");
-
         if (storedChatId) {
-          // A chat ID was found, let's try to restore the session.
           const chatRef = doc(db, "chats", storedChatId);
           const chatSnap = await getDoc(chatRef);
-
-          // Check if the chat still exists and is active in Firestore
           if (chatSnap.exists() && chatSnap.data().status === "active") {
-            const userRef = doc(db, "users", currentUser.uid);
             const userSnap = await getDoc(userRef);
-
             if (userSnap.exists()) {
               console.log("Restoring active chat session:", storedChatId);
               setUserProfile(userSnap.data());
               setChatId(storedChatId);
-              setAppState("chatting"); // Go directly to the chat
-              return; // Exit to prevent falling through to homepage
+              setAppState("chatting");
+              return; // Exit to prevent falling through to the reset logic
             }
           }
-          // If the chat is no longer active, remove the old ID
+          // If the chat is no longer active or valid, remove the old ID
           sessionStorage.removeItem("usaptayo-chatId");
         }
 
-        // --- Fallback Logic ---
-        // If no active chat session is found, start at the homepage.
-        setAppState("homepage");
+        // --- KEY FIX ---
+        // For any new session (not a restored chat), reset the user's status in the DB.
+        // This ensures a fresh start from the homepage.
+        console.log("New session detected. Resetting user status to homepage.");
+        try {
+          // This write operation resets the state for the onSnapshot listener.
+          await setDoc(userRef, { status: "homepage" }, { merge: true });
+        } catch (error) {
+          console.error("Failed to reset user status on load:", error);
+          // If Firestore fails, at least reset the local state.
+          setAppState("homepage");
+        }
+
         setUserProfile(null);
         setChatId(null);
       } else {
@@ -1220,9 +1225,24 @@ export default function App() {
           <AdminPanel
             onApprove={approveAnnouncement}
             onReject={rejectAnnouncement}
-            onLogout={() => {
-              setIsAdmin(false);
-              setAppState("homepage");
+            onLogout={async () => {
+              try {
+                if (user) {
+                  const userRef = doc(db, "users", user.uid);
+                  // Update status in Firestore to prevent race condition
+                  await updateDoc(userRef, {
+                    status: "homepage",
+                    isAdmin: false,
+                  });
+                }
+              } catch (error) {
+                console.error("Failed to update user status on logout:", error);
+              } finally {
+                // This ensures the UI updates even if the network call fails
+                setIsAdmin(false);
+                setAppState("homepage");
+                showNotification("You have been logged out.", "info");
+              }
             }}
           />
           {notification.show && (
@@ -1580,7 +1600,7 @@ const ChatRoom = ({ userProfile, chatId }) => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       // If the click is not on a message bubble or its children, close the picker
-      if (!event.target.closest('.message-bubble-wrapper')) {
+      if (!event.target.closest(".message-bubble-wrapper")) {
         setActivePickerId(null);
       }
     };
@@ -1588,13 +1608,13 @@ const ChatRoom = ({ userProfile, chatId }) => {
     // Use the chat room's ref to add the event listener
     const chatRoomElement = chatRoomRef.current;
     if (chatRoomElement) {
-      chatRoomElement.addEventListener('mousedown', handleClickOutside);
+      chatRoomElement.addEventListener("mousedown", handleClickOutside);
     }
 
     // Cleanup function to remove the listener when the component unmounts
     return () => {
       if (chatRoomElement) {
-        chatRoomElement.removeEventListener('mousedown', handleClickOutside);
+        chatRoomElement.removeEventListener("mousedown", handleClickOutside);
       }
     };
   }, [setActivePickerId]); // Re-run effect if the setter function changes
@@ -1603,7 +1623,10 @@ const ChatRoom = ({ userProfile, chatId }) => {
     <main className="chat-room" ref={chatRoomRef}>
       {messages.map((msg, index) => {
         const prevMessage = messages[index - 1];
-        const isConsecutive = prevMessage && prevMessage.uid === msg.uid && !prevMessage.isSystemMessage;
+        const isConsecutive =
+          prevMessage &&
+          prevMessage.uid === msg.uid &&
+          !prevMessage.isSystemMessage;
 
         return (
           <ChatMessage
@@ -1622,7 +1645,13 @@ const ChatRoom = ({ userProfile, chatId }) => {
   );
 };
 
-const ChatMessage = ({ message, currentUserUID, showPicker, setActivePickerId, isConsecutive }) => {
+const ChatMessage = ({
+  message,
+  currentUserUID,
+  showPicker,
+  setActivePickerId,
+  isConsecutive,
+}) => {
   const {
     text,
     uid,
@@ -1687,7 +1716,7 @@ const ChatMessage = ({ message, currentUserUID, showPicker, setActivePickerId, i
         if (!currentReactions[emoji]) currentReactions[emoji] = [];
         currentReactions[emoji].push(currentUserUID);
       }
-      
+
       transaction.update(messageRef, { reactions: currentReactions });
     });
     setActivePickerId(null);
@@ -1699,16 +1728,20 @@ const ChatMessage = ({ message, currentUserUID, showPicker, setActivePickerId, i
   return (
     <div className={`message-container ${messageClass} ${consecutiveClass}`}>
       <div className={`message-bubble-wrapper`}>
-        
         {/* === CHANGE IS HERE === */}
         {/* The display name is now OUTSIDE the message bubble div */}
-        {!isConsecutive && <p className="display-name">{displayName || "Anonymous"}</p>}
-        
-        <div className={`message-bubble ${messageClass}`} onClick={handleBubbleClick}>
+        {!isConsecutive && (
+          <p className="display-name">{displayName || "Anonymous"}</p>
+        )}
+
+        <div
+          className={`message-bubble ${messageClass}`}
+          onClick={handleBubbleClick}
+        >
           {/* The name is no longer inside this div */}
           <p>{text}</p>
         </div>
-        
+
         {showPicker && (
           <div className="emoji-picker-popup">
             {availableReactions.map((emoji) => (
@@ -2082,8 +2115,8 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
             <div className="maintenance-message">
               <h4>Under Maintenance</h4>
               <p>
-                The announcement feature is currently being upgraded to serve you better! 
-                Check back soon for an improved experience. ✨
+                The announcement feature is currently being upgraded to serve
+                you better! Check back soon for an improved experience. ✨
               </p>
               <p className="maintenance-subtitle">
                 Thanks for your patience, bestie! 💜
