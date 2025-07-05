@@ -1252,7 +1252,7 @@ body {
 
 .admin-header {
   display: flex;
-  justify-content: center; /* Centers the title */
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 2.5rem;
   padding: 1.5rem;
@@ -1263,6 +1263,22 @@ body {
   margin-left: auto;
   margin-right: auto;
   flex-shrink: 0;
+}
+
+.refresh-button {
+  background-color: var(--info-color);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.refresh-button:hover {
+  background-color: #2563eb;
+  transform: rotate(90deg);
 }
 
 .admin-header h2 {

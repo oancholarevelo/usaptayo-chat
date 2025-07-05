@@ -2431,50 +2431,53 @@ const PollModal = ({ onClose, chatId }) => {
 };
 
 // Admin Panel Component
-// Replace the ENTIRE AdminPanel component in App.js with this:
 const AdminPanel = ({ onApprove, onReject, onLogout }) => {
   const [requests, setRequests] = useState([]);
+  // 1. Add a state for triggering a refresh
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    const fetchRequests = async () => {
-      try {
-        const requestsRef = collection(db, "announcement_requests");
-        const q = query(
-          requestsRef,
-          where("status", "==", "pending"),
-          orderBy("createdAt", "desc")
-        );
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-          const reqs = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate() || new Date(),
-          }));
-          setRequests(reqs);
-        });
-        return unsubscribe;
-      } catch (error) {
+    // This function now runs on mount and whenever refreshTrigger changes
+    const requestsRef = collection(db, "announcement_requests");
+    const q = query(
+      requestsRef,
+      where("status", "==", "pending"),
+      orderBy("createdAt", "desc")
+    );
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const reqs = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+      }));
+      setRequests(reqs);
+    }, (error) => {
         console.error("Error fetching announcement requests:", error);
-      }
-    };
+    });
 
-    fetchRequests();
-  }, []);
+    // Cleanup the listener when the component unmounts or the effect re-runs
+    return () => unsubscribe();
+
+  // 2. Add refreshTrigger to the dependency array
+  }, [refreshTrigger]);
 
   const formatDate = (date) => {
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return date.toLocaleString("en-US", { /* ... */ });
+  };
+
+  // 3. Create a function to trigger the refresh
+  const handleRefresh = () => {
+    setRefreshTrigger(prev => prev + 1); // Increment to trigger the effect
   };
 
   return (
     <div className="admin-panel">
       <div className="admin-header">
         <h2>Admin Panel</h2>
+        {/* 4. Add the refresh button to the UI */}
+        <button onClick={handleRefresh} className="refresh-button">
+           🔄 Refresh
+        </button>
       </div>
 
       {/* This container is ESSENTIAL for the flexbox layout to work */}
