@@ -59,7 +59,7 @@ const shuffle = (array) => {
   return array;
 };
 
-const ANNOUNCEMENT_MAINTENANCE = true;
+const ANNOUNCEMENT_MAINTENANCE = false;
 
 // --- Main App Component ---
 export default function App() {
@@ -752,7 +752,7 @@ export default function App() {
         endedAt: serverTimestamp(),
         endedBy: user.uid,
       });
-      
+
       usersInChat.forEach((uid) => {
         const userRef = doc(db, "users", uid);
         batch.update(userRef, {
