@@ -2455,37 +2455,25 @@ const PollModal = ({ onClose, chatId }) => {
 
   return (
     <div className="poll-modal-overlay">
-           {" "}
       <div className="poll-modal">
-               {" "}
         <div className="poll-modal-header">
-                    <h3>Vibe Check ✨</h3>         {" "}
+          <h3>Vibe Check ✨</h3>
           <button onClick={onClose} className="close-button">
-                        ×          {" "}
+            ×
           </button>
-                 {" "}
         </div>
-               {" "}
         <div className="poll-modal-content">
-                   {" "}
-          <p>Ask your ka-talking stage a question to check the vibe.</p>       
-           {" "}
+          <p>Ask your ka-talking stage a question to check the vibe.</p>
           <div className="poll-list">
-                       {" "}
             {pollQuestions.map((poll) => (
               <div key={poll.id} className="poll-item">
-                                <span>{poll.question}</span>               {" "}
-                <button onClick={() => handleSendPoll(poll)}>Ask</button>       
-                     {" "}
+                <span>{poll.question}</span>
+                <button onClick={() => handleSendPoll(poll)}>Ask</button>
               </div>
             ))}
-                     {" "}
           </div>
-                 {" "}
         </div>
-             {" "}
       </div>
-         {" "}
     </div>
   );
 };

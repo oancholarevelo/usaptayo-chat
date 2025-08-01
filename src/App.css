@@ -783,6 +783,8 @@ body {
 
 .poll-modal-content {
   padding: 1.5rem;
+  max-height: 60vh; /* Or any height you prefer */
+  overflow-y: auto;
 }
 
 .poll-modal-content p {
@@ -804,6 +806,12 @@ body {
   background: var(--bg-tertiary);
   padding: 1rem;
   border-radius: 0.5rem;
+  text-align: left;
+}
+
+.poll-item span {
+  flex-grow: 1; /* Allows the text to take up available space */
+  margin-right: 1rem; /* Adds some space between text and button */
 }
 
 .poll-item button {
