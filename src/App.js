@@ -2249,12 +2249,12 @@ const AnnouncementModal = ({ onClose, onSuccess }) => {
               <div className="payment-method">
                 <h5>GCash 📱</h5>
                 <p className="payment-number">09615814316</p>
-                <p className="payment-name">Oliver R.</p>
+                <p className="payment-name">O***** R.</p>
               </div>
               <div className="payment-method">
                 <h5>Maya 💙</h5>
                 <p className="payment-number">09615814316</p>
-                <p className="payment-name">Oliver R.</p>
+                <p className="payment-name">O***** R.</p>
               </div>
             </div>
             <div className="payment-instructions">
