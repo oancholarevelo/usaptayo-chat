@@ -1135,7 +1135,7 @@ export default function App() {
             onSecretTap={handleSecretTap}
             theme={theme}
             toggleTheme={toggleTheme}
-            onShowPollModal={onShowPollModal}
+            onShowPollModal={showPollModal}
           />
           {notification.show && (
             <NotificationToast
