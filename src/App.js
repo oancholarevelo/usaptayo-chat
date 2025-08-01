@@ -2363,34 +2363,74 @@ const PollModal = ({ onClose, chatId }) => {
   const pollQuestions = [
     {
       id: "q1",
-      question: "Vibe for tonight?",
+      question: "Tonight's vibe check?",
       options: [
-        { id: "o1", text: "Stay in & chill" },
-        { id: "o2", text: "Go out & party" },
+        { id: "o1", text: "Lowkey night in 😌" },
+        { id: "o2", text: "Out with the Gs! 💅" },
+        { id: "o3", text: "Depende sa G? 👀" },
       ],
     },
     {
       id: "q2",
-      question: "Ideal first date?",
+      question: "Ideal first date 'to?",
       options: [
-        { id: "o1", text: "Coffee shop" },
-        { id: "o2", text: "Dinner & a movie" },
+        { id: "o1", text: "Coffee shop talks ☕" },
+        { id: "o2", text: "Dinner & a movie 🎬" },
+        { id: "o3", text: "Something adventurous ✨" },
       ],
     },
     {
       id: "q3",
-      question: "Music preference?",
+      question: "Spill the tea: anong music mo?",
       options: [
-        { id: "o1", text: "OPM" },
-        { id: "o2", text: "International Hits" },
+        { id: "o1", text: "OPM hits different 🇵🇭" },
+        { id: "o2", text: "International bops 💅" },
+        { id: "o3", text: "K-Pop is life! 🫰" },
       ],
     },
     {
       id: "q4",
-      question: "Dogs or Cats?",
+      question: "Furbaby check?",
       options: [
-        { id: "o1", text: "Dogs 🐶" },
-        { id: "o2", text: "Cats 🐱" },
+        { id: "o1", text: "Dog person 🐶" },
+        { id: "o2", text: "Cat person 🐱" },
+        { id: "o3", text: "Sana all may pet 🥹" },
+      ],
+    },
+    {
+      id: "q5",
+      question: "What's your love language?",
+      options: [
+        { id: "o1", text: "Words of Affirmation 💬" },
+        { id: "o2", text: "Quality Time ⏳" },
+        { id: "o3", text: "Acts of Service 💖" },
+      ],
+    },
+    {
+      id: "q6",
+      question: "Pick a movie genre:",
+      options: [
+        { id: "o1", text: "Horror na nakakagigil 👻" },
+        { id: "o2", text: "Rom-com for the feels 🥰" },
+        { id: "o3", text: "Action/Sci-Fi 💥" },
+      ],
+    },
+    {
+      id: "q7",
+      question: "Go-to drink?",
+      options: [
+        { id: "o1", text: "Coffee is my lifeblood ☕" },
+        { id: "o2", text: "Tea for the soul 🍵" },
+        { id: "o3", text: "Milk tea supremacy! 🧋" },
+      ],
+    },
+    {
+      id: "q8",
+      question: "How do you handle stress?",
+      options: [
+        { id: "o1", text: "Music and chill lang 🎧" },
+        { id: "o2", text: "Talk it out with friends 🗣️" },
+        { id: "o3", text: "Gaming mode on 🎮" },
       ],
     },
   ];
@@ -2415,25 +2455,37 @@ const PollModal = ({ onClose, chatId }) => {
 
   return (
     <div className="poll-modal-overlay">
+           {" "}
       <div className="poll-modal">
+               {" "}
         <div className="poll-modal-header">
-          <h3>Vibe Check ✨</h3>
+                    <h3>Vibe Check ✨</h3>         {" "}
           <button onClick={onClose} className="close-button">
-            ×
+                        ×          {" "}
           </button>
+                 {" "}
         </div>
+               {" "}
         <div className="poll-modal-content">
-          <p>Ask your ka-talking stage a question to check the vibe.</p>
+                   {" "}
+          <p>Ask your ka-talking stage a question to check the vibe.</p>       
+           {" "}
           <div className="poll-list">
+                       {" "}
             {pollQuestions.map((poll) => (
               <div key={poll.id} className="poll-item">
-                <span>{poll.question}</span>
-                <button onClick={() => handleSendPoll(poll)}>Ask</button>
+                                <span>{poll.question}</span>               {" "}
+                <button onClick={() => handleSendPoll(poll)}>Ask</button>       
+                     {" "}
               </div>
             ))}
+                     {" "}
           </div>
+                 {" "}
         </div>
+             {" "}
       </div>
+         {" "}
     </div>
   );
 };
