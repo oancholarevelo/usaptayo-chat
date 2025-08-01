@@ -21,6 +21,7 @@ import {
 } from "firebase/firestore";
 import { Analytics } from "@vercel/analytics/react";
 import "./App.css"; // Import the CSS file
+import AdSense from "./AdSense";
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -1017,6 +1018,7 @@ export default function App() {
               onCancel={hideConfirmDialog}
             />
           )}
+          <AdSense adSlot="2131167219" />
           <Analytics />
         </>
       );
@@ -1041,6 +1043,7 @@ export default function App() {
               onCancel={hideConfirmDialog}
             />
           )}
+          <AdSense adSlot="2131167219" />
           <Analytics />
         </>
       );
@@ -1065,6 +1068,7 @@ export default function App() {
               onCancel={hideConfirmDialog}
             />
           )}
+          <AdSense adSlot="2131167219" />
           <Analytics />
         </>
       );
@@ -1090,6 +1094,7 @@ export default function App() {
               onCancel={hideConfirmDialog}
             />
           )}
+          <AdSense adSlot="2131167219" />
           <Analytics />
         </>
       );
@@ -1114,6 +1119,7 @@ export default function App() {
               onCancel={hideConfirmDialog}
             />
           )}
+          <AdSense adSlot="2131167219" />
           <Analytics />
         </>
       );
@@ -1129,7 +1135,7 @@ export default function App() {
             onSecretTap={handleSecretTap}
             theme={theme}
             toggleTheme={toggleTheme}
-            onShowPollModal={showPollModal}
+            onShowPollModal={onShowPollModal}
           />
           {notification.show && (
             <NotificationToast
@@ -1203,6 +1209,7 @@ export default function App() {
               }}
             />
           )}
+          <AdSense adSlot="2131167219" />
           <Analytics />
         </>
       );
@@ -1280,6 +1287,7 @@ export default function App() {
               onCancel={hideConfirmDialog}
             />
           )}
+          <AdSense adSlot="2131167219" />
           <Analytics />
         </>
       );
